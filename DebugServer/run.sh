@@ -1,7 +1,8 @@
 #!/bin/bash
 
 TARGET="DebugServer"
-JOB="./$TARGET"
+OPT="--msg"
+JOB="./$TARGET $OPT"
 
 if [ -x $TARGET ]; then
         echo "$JOB"
