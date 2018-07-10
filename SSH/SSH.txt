@@ -1,0 +1,53 @@
+/*____________________________________________________________________________*/
+/* INSTALL */
+
+apt install openssh-client openssh-server keychain
+/*------------------------------------*/
+/* CONFIG */
+
+man sshd_config
+
+Edit file:
+cp /etc/ssh/sshd_config /etc/ssh/sshd_config-original
+vim /etc/ssh/sshd_config
+
+Add Lines:
+    LoginGraceTime 60s
+    PermitRootLogin no
+    PasswordAuthentication no
+    TCPKeepAlive yes
+    Compression yes
+/*------------------------------------*/
+/* SERVICE */
+
+service sshd restart
+/*------------------------------------*/
+/* KEYGEN */
+
+ssh-keygen -t ed25519 -C "$(whoami)@$(hostname)-ed25519-$(date +%Y%m%d)"
+/*------------------------------------*/
+/* COPYID */
+
+ssh-copy-id -i ~/.ssh/id_e25519.pub user@remote-server
+
+Manually:
+mkdir ~/.ssh
+chmod 700 ~/.ssh
+touch ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys
+cat ~/id_e25519.pub >> ~/.ssh/authorized_keys
+/*------------------------------------*/
+/* KEYCHAIN */
+
+Edit file:
+cp ~/.bashrc ~/.bashrc-original
+vim ~/.bashrc
+
+Add lines:
+    # keychain
+    eval $(keychain --eval --quiet id_ed25519)
+/*------------------------------------*/
+/* LOGIN */
+
+ssh user_name@host_name
+/*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
