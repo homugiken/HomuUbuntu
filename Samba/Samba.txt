@@ -1,0 +1,37 @@
+/*____________________________________________________________________________*/
+/* INSTALL */
+
+apt install samba
+/*------------------------------------*/
+/* MKDIR */
+
+mkdir ~/.samba
+ln -sv ~/.samba ~/samba
+/*------------------------------------*/
+/* PASSWD */
+
+smbpasswd -a <user_name>
+/*------------------------------------*/
+/* CONFIG */
+
+man smb.conf
+
+Edit file:
+cp /etc/samba/smb.conf /etc/samba/smb.conf-original
+vim /etc/samba/smb.conf
+
+Add lines:
+    allow insecure wide links = yes
+
+[XXXX]
+    comment = XXXX-samba
+    path = /home/user_name/.samba
+    browseable = yes
+    read only = no
+    wide links = yes
+    force user = user_name
+/*------------------------------------*/
+/* SERVICE */
+
+service smbd restart
+/*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
