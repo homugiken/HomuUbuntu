@@ -3,6 +3,7 @@
 #define DEBUGSERVER_H_
 /*____________________________________________________________________________*/
 /* INCLUDE */
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <ftw.h>
@@ -15,6 +16,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+
 
 #include <sys/ipc.h>
 #include <sys/msg.h>
@@ -31,76 +33,84 @@
 /* DEBUG MACROS */
 /*------------------------------------*/
 /* ENABLE */
-#define DEBUGSERVER_DBG_ENABLE          1
-#define DEBUGSERVER_ERR_ENABLE          1
-#define DEBUGSERVER_WRN_ENABLE          1
-#define DEBUGSERVER_LOG_ENABLE          1
-#define DEBUGSERVER_INF_ENABLE          0
-#define DEBUGSERVER_TAG_ENABLE          0
+#define DBG_SERVER_ENABLE_DBGSTD        1       /* DBGSTD */
+#define DBG_SERVER_ENABLE_DBGMSG        0       /* DBGMSG */
 
-#if DEBUGSERVER_DBG_ENABLE
-#define DEBUGSERVER_DBGSTD_ENABLE       1
-#define DEBUGSERVER_DBGMSG_ENABLE       1
-#else
-#define DEBUGSERVER_DBGSTD_ENABLE       0
-#define DEBUGSERVER_DBGMSG_ENABLE       0
-#endif
+#define DBG_SERVER_ENABLE_ALL           1       /* ALL */
+#define DBG_SERVER_ENABLE_ERR           1       /* ERR */
+#define DBG_SERVER_ENABLE_WRN           1       /* WRN */
+#define DBG_SERVER_ENABLE_LOG           1       /* LOG */
+#define DBG_SERVER_ENABLE_INF           1       /* INF */
+#define DBG_SERVER_ENABLE_TAG           1       /* TAG */
+
+#define DBG_SERVER_VERBOSE_ERR          0       /* ERR */
+#define DBG_SERVER_VERBOSE_WRN          1       /* WRN */
+#define DBG_SERVER_VERBOSE_LOG          2       /* LOG */
+#define DBG_SERVER_VERBOSE_INF          3       /* INF */
+#define DBG_SERVER_VERBOSE_TAG          4       /* TAG */
+#define DBG_SERVER_VERBOSE_MIN          0
+#define DBG_SERVER_VERBOSE_MAX          4
+#define DBG_SERVER_VERBOSE_DFT          DBG_SERVER_VERBOSE_LOG
 /*------------------------------------*/
 /* DBGSTD */
-#if DEBUGSERVER_DBGSTD_ENABLE
+#if DBG_SERVER_ENABLE_DBGSTD && DBG_SERVER_ENABLE_ALL
 #define DBGSTD(fmt,...)                 dbgstd_printf("#%04d|%s:"fmt, __LINE__,__FUNCTION__,##__VA_ARGS__)
 #else
 #define DBGSTD(fmt,...)
 #endif
 /*------------------------------------*/
 /* DBGMSG */
-#if DEBUGSERVER_DBGMSG_ENABLE
-#define DBGMSG(fmt,...)
+#if DBG_SERVER_ENABLE_DBGMSG && DBG_SERVER_ENABLE_ALL
+#define DBGMSG(fmt,...)                 dbgmsg_printf("#%04d|%s:"fmt, __LINE__,__FUNCTION__,##__VA_ARGS__)
 #else
 #define DBGMSG(fmt,...)
 #endif
 /*------------------------------------*/
-/* DBG */
-#if DEBUGSERVER_DBG_ENABLE
+/* ALL */
+#if DBG_SERVER_ENABLE_ALL
 #define DBG(fmt,...)                    DOWHILE(DBGSTD(fmt,##__VA_ARGS__); DBGMSG(fmt,##__VA_ARGS__);)
 #else
 #define DBG(fmt,...)
 #endif
 /*------------------------------------*/
 /* ERR */
-#if DEBUGSERVER_ERR_ENABLE
-#define ERR(fmt,...)                    DBG("ERR!"fmt,##__VA_ARGS__)
+#if DBG_SERVER_ENABLE_ERR
+#define ERR(fmt,...)                    DOWHILE(if(gcfg->verbose>=DBG_SERVER_VERBOSE_ERR){DBG("ERR!"fmt,##__VA_ARGS__);})
 #else
 #define ERR(fmt,...)
 #endif
 /*------------------------------------*/
 /* WRN */
-#if DEBUGSERVER_WRN_ENABLE
-#define WRN(fmt,...)                    DBG("WRN!"fmt,##__VA_ARGS__)
+#if DBG_SERVER_ENABLE_WRN
+#define WRN(fmt,...)                    DOWHILE(if(gcfg->verbose>=DBG_SERVER_VERBOSE_WRN){DBG("WRN!"fmt,##__VA_ARGS__);})
 #else
 #define WRN(fmt,...)
 #endif
 /*------------------------------------*/
 /* LOG */
-#if DEBUGSERVER_LOG_ENABLE
-#define LOG(fmt,...)                    DBG(fmt,##__VA_ARGS__)
+#if DBG_SERVER_ENABLE_LOG
+#define LOG(fmt,...)                    DOWHILE(if(gcfg->verbose>=DBG_SERVER_VERBOSE_LOG){DBG(fmt,##__VA_ARGS__);})
 #else
 #define LOG(fmt,...)
 #endif
 /*------------------------------------*/
 /* INF */
-#if DEBUGSERVER_INF_ENABLE
-#define INF(fmt,...)                    DBG("INF:"fmt,##__VA_ARGS__)
+#if DBG_SERVER_ENABLE_INF
+#define INF(fmt,...)                    DOWHILE(if(gcfg->verbose>=DBG_SERVER_VERBOSE_INF){DBG(fmt,##__VA_ARGS__);})
 #else
 #define INF(fmt,...)
 #endif
 /*------------------------------------*/
 /* TAG */
-#if DEBUGSERVER_TAG_ENABLE
-#define TAG(NAME)                       DBG("<%s>",NAME)
+#if DBG_SERVER_ENABLE_TAG
+#define TAG(NAME)                       DOWHILE(if(gcfg->verbose>=DBG_SERVER_VERBOSE_TAG){DBG("<%s>",NAME);})
 #else
 #define TAG(NAME)
 #endif
+
+#define ENTR()                          TAG("ENTR")
+#define EXIT()                          TAG("EXIT")
+#define FAIL()                          ERR("<FAIL>")
 /*------------------------------------*/
 /* CHK */
 #define CHK_NULL(CHK,PRT,ARG)           CHK(ARG==NULL, PRT("%s NULL", #ARG))
@@ -127,25 +137,17 @@
 #define WRN_NPOS(ARG)                   CHK_NPOS(ERR_CHK,ERR,ARG)
 #define WRN_FALSE(ARG)                  CHK_FALSE(ERR_CHK,ERR,ARG)
 #define WRN_RANGE(ARG,MIN,MAX)          CHK_RANGE(ERR_CHK,ERR,ARG,MIN,MAX)
-/*------------------------------------*/
-/* TAG */
-#define ENTR()                          TAG("ENTR")
-#define EXIT()                          TAG("EXIT")
-#define FAIL()                          ERR("<FAIL>")
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
 
 /*____________________________________________________________________________*/
-/* UTILITY MACROS */
-#define TRYWHILE(TRY,FUNC) \
-DOWHILE(int iter=0; while(iter++<TRY){ret=FUNC; if(ret==0){break;} WRN_NZERO(iter);})
-#define PAUSE(fmt,...) \
-DOWHILE(TAG("PAUSE",fmt,##__VA_ARGS__); while(getchar()!='g'){usleep(100000);} )
-#define MEMZERO(PTR,SIZE) \
-memset(PTR,0,SIZE)
-#define MALLOCZERO(PTR,TYPE) \
-DOWHILE(PTR=malloc(sizeof(TYPE)); if(PTR!=NULL){MEMZERO(PTR,sizeof(TYPE));})
+/* UTILITY */
+#define TRYWHILE(TRY,FUNC)              DOWHILE(int iter=0; while(iter++<TRY){ret=FUNC; if(ret==0){break;} WRN_NZERO(iter);})
+#define PAUSE()                         DOWHILE(TAG("PAUSE"); while(getchar()!='g'){usleep(100000);} )
+#define MEMZERO(PTR,SIZE)               memset(PTR,0,SIZE)
+#define MALLOCZERO(PTR,TYPE)            DOWHILE(PTR=malloc(sizeof(TYPE)); if(PTR!=NULL){MEMZERO(PTR,sizeof(TYPE));})
 #define STRBOOL(VAL)                    VAL ? "true" : "false"
 #define ERR_ERRNO()                     ERR("errno=%d %s", errno, strerror(errno))
+#define REGULATE_RANGE(ARG,MIN,MAX)     DOWHILE(if(ARG<MIN){ARG=MIN;}else if(ARG>MAX){ARG=MAX;})
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
 
 /*____________________________________________________________________________*/
@@ -206,13 +208,19 @@ typedef struct DBGMSG_SERVER_CTL {
 #define DBG_SERVER_LOG_PATH_NAME_LEN    (DBG_SERVER_LOG_PATH_LEN + DBG_SERVER_LOG_NAME_LEN)
 #define DBG_SERVER_LOG_PATH_DFT         "./dbg"
 
-#define DBG_SERVER_LOG_SIZE_MIN         2
+#define DBG_SERVER_LOG_SIZE_MIN         10
 #define DBG_SERVER_LOG_SIZE_MAX         100
 #define DBG_SERVER_LOG_SIZE_DFT         DBG_SERVER_LOG_SIZE_MIN
 
-#define DBG_SERVER_LOG_COUNT_MIN        2
-#define DBG_SERVER_LOG_COUNT_MAX        100
-#define DBG_SERVER_LOG_COUNT_DFT        DBG_SERVER_LOG_COUNT_MIN
+#define DBG_SERVER_LOG_COUNT_MIN        10
+#define DBG_SERVER_LOG_COUNT_MAX        1000
+#define DBG_SERVER_LOG_COUNT_DFT        DBG_SERVER_LOG_COUNT_MAX
+
+#define DBG_SERVER_IDX_NAME_LEN         32
+#define DBG_SERVER_IDX_PATH_NAME_LEN    (DBG_SERVER_LOG_PATH_LEN + DBG_SERVER_IDX_NAME_LEN)
+#define DBG_SERVER_IDX_NAME_DFT         "idx-dbg.txt"
+#define DBG_SERVER_IDX_MIN              0
+#define DBG_SERVER_IDX_MAX              DBG_SERVER_LOG_COUNT_MAX
 
 typedef struct DBG_SERVER_STAT {
         pid_t                           pid;
@@ -220,6 +228,7 @@ typedef struct DBG_SERVER_STAT {
 } DBG_SERVER_STAT;
 
 typedef struct DBG_SERVER_CFG {
+        uint8_t                         verbose;
         char                            log_path[DBG_SERVER_LOG_PATH_LEN];
         int                             log_size;                               /* MB */
         int                             log_count;
@@ -231,15 +240,20 @@ typedef struct DBG_SERVER_CFG {
 typedef struct DBG_SERVER_CTL {
         DBGMSG_SERVER_CTL               DBGMSG_SERVER;
         DBGMSG_SERVER_CTL *             dbgmsg_server;
+        time_t                          tnow;
+        struct tm *                     local;
         char                            log_name[DBG_SERVER_LOG_NAME_LEN];
         char                            log_path_name[DBG_SERVER_LOG_PATH_NAME_LEN];
-        int                             log_fd;
-        int                             log_index;
-        int                             log_index_top;
-        int                             log_index_bottom;
+        int                             log_fp;
+        char                            idx_path_name[DBG_SERVER_IDX_PATH_NAME_LEN];
+        FILE *                          idx_fp;
+        int                             idx_create;
+        int                             idx_delete;
 } DBG_SERVER_CTL;
 
 static int dbg_server_loop (void);
+static int dbg_server_idx_update (void);
+static int dbg_server_idx_fetch (void);
 static int dbg_server_mkdir (void);
 static int dbg_server_reset (void);
 static void dbg_server_exit (int ret);

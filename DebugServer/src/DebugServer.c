@@ -269,42 +269,90 @@ error:  FAIL();
 }       /* dbg_server_loop */
 /*------------------------------------*/
 static int
-dbg_server_scan (
-        const char *                    fpath,
-        const struct stat *             sb,
-        int                             typeflag)
+dbg_server_log_create (void)
 {       ENTR();
         int                             ret = -1;
-        ERR_NULL(fpath); ERR_NULL(sb);
 
-        if (typeflag != FTW_F)
+        gctl->tnow = time(NULL);
+        gctl->local = localtime(&(gctl->tnow));
+        snprintf(gctl->log_name, DBG_SERVER_LOG_NAME_LEN, "%04d-%04d%02d%02d-%02d%02d%02d-dbg.txt",
+                 gctl->idx_create, (gctl->local->tm_year + 1900), (gctl->local->tm_mon + 1), gctl->local->tm_mday,
+                 gctl->local->tm_hour, gctl->local->tm_min, gctl->local->tm_sec);
+        snprintf(gctl->log_path_name, DBG_SERVER_LOG_PATH_NAME_LEN, "%s/%s", gcfg->log_path, gctl->log_name);
+        INF("log_path_name=\"%s\"", gctl->log_path_name);
+
+        if (gctl->log_fp != NULL)
         {
-                ret = 0;
-                goto exit;
+                fclose(gctl->log_fp);
+                gctl->log_fp = NULL;
         }
-        INF("fpath=\"%s\"", fpath);
-
+        gctl->log_fp = fopen(gctl->log_path_name, "w+"); ERR_NULL(gctl->log_fp);
+        gctl->idx_create++;
+        ret = dbg_server_idx_update(); ERR_NZERO(ret);
 
         ret = 0;
 exit:   EXIT();
         return(ret);
 error:  FAIL();
         goto exit;
-}       /* dbg_server_scan */
+}       /* dbg_server_log_create */
 /*------------------------------------*/
 static int
-dbg_server_ftw (void)
+dbg_server_idx_update (void)
 {       ENTR();
         int                             ret = -1;
+        int                             len;
 
-        ret = ftw(gcfg->log_path, dbg_server_scan, 2); ERR_NZERO(ret);
+        len = strnlen(gctl->idx_path_name, DBG_SERVER_IDX_PATH_NAME_LEN);
+        if (len < 1)
+        {
+                snprintf(gctl->idx_path_name, DBG_SERVER_IDX_PATH_NAME_LEN, "%s/%s", gcfg->log_path, DBG_SERVER_IDX_NAME_DFT);
+        }
+
+        gctl->idx_fp = fopen(gctl->idx_path_name, "w+"); ERR_NULL(gctl->idx_fp);
+        fprintf(gctl->idx_fp, "[create=%04d][delete=%04d]\r\n", gctl->idx_create, gctl->idx_delete);
+        INF("[create=%04d][delete=%04d]", gctl->idx_create, gctl->idx_delete);
+        ret = fclose(gctl->idx_fp); ERR_NZERO(ret);
 
         ret = 0;
 exit:   EXIT();
         return(ret);
 error:  FAIL();
+        ERR_ERRNO();
         goto exit;
-}       /* dbg_server_ftw */
+}       /* dbg_server_idx_update */
+/*------------------------------------*/
+static int
+dbg_server_idx_fetch (void)
+{       ENTR();
+        int                             ret = -1;
+        int                             len;
+
+        len = strnlen(gctl->idx_path_name, DBG_SERVER_IDX_PATH_NAME_LEN);
+        if (len < 1)
+        {
+                snprintf(gctl->idx_path_name, DBG_SERVER_IDX_PATH_NAME_LEN, "%s/%s", gcfg->log_path, DBG_SERVER_IDX_NAME_DFT);
+        }
+
+        gctl->idx_fp = fopen(gctl->idx_path_name, "a+"); ERR_NULL(gctl->idx_fp);
+        rewind(gctl->idx_fp);
+        ret = fscanf(gctl->idx_fp, "[create=%04d][delete=%04d]", &(gctl->idx_create), &(gctl->idx_delete));
+        if (ret < 1)
+        {
+                gctl->idx_create = DBG_SERVER_IDX_MIN;
+                gctl->idx_delete = DBG_SERVER_IDX_MIN;
+                rewind(gctl->idx_fp);
+                fprintf(gctl->idx_fp, "[create=%04d][delete=%04d]\r\n", gctl->idx_create, gctl->idx_delete);
+        }
+        ret = fclose(gctl->idx_fp); ERR_NZERO(ret);
+
+        ret = 0;
+exit:   EXIT();
+        return(ret);
+error:  FAIL();
+        ERR_ERRNO();
+        goto exit;
+}       /* dbg_server_idx_fetch */
 /*------------------------------------*/
 static int
 dbg_server_mkdir (void)
@@ -312,7 +360,15 @@ dbg_server_mkdir (void)
         int                             ret = -1;
         int                             i;
         int                             len;
+        DIR *                           dir;
         char                            strdir[DBG_SERVER_LOG_PATH_LEN] = {'0'};
+
+        dir = opendir(gcfg->log_path);
+        if (dir != NULL)
+        {
+                ret = closedir(dir); ERR_NZERO(ret);
+                goto exit;
+        }
 
         len = strlen(gcfg->log_path);
         for (i = 0; i < len; i++)
@@ -329,10 +385,23 @@ dbg_server_mkdir (void)
                 }
         }
 
+        dir = opendir(gcfg->log_path);
+        if (dir != NULL)
+        {
+                ret = closedir(dir); ERR_NZERO(ret);
+                goto exit;
+        }
+        else
+        {
+                ret = -1;
+                goto error;
+        }
+
         ret = 0;
 exit:   EXIT();
         return(ret);
 error:  FAIL();
+        ERR_ERRNO();
         goto exit;
 }       /* dbg_server_mkdir */
 /*------------------------------------*/
@@ -365,6 +434,8 @@ exit:   EXIT();
 /*------------------------------------*/
 #define OPTL_HELP                       "help"
 #define OPTC_HELP                       'h'
+#define OPTL_VERBOSE                    "verbose"
+#define OPTC_VERBOSE                    'v'
 #define OPTL_LOG_PATH                   "path"
 #define OPTC_LOG_PATH                   'p'
 #define OPTL_LOG_SIZE                   "size"
@@ -382,7 +453,8 @@ exit:   EXIT();
 extern char *                           optarg;
 static struct option                    optlist[] =
 {
-        {OPTL_HELP,             required_argument,      0, OPTC_HELP},
+        {OPTL_HELP,             no_argument,            0, OPTC_HELP},
+        {OPTL_VERBOSE,          required_argument,      0, OPTC_VERBOSE},
         {OPTL_LOG_PATH,         required_argument,      0, OPTC_LOG_PATH},
         {OPTL_LOG_SIZE,         required_argument,      0, OPTC_LOG_SIZE},
         {OPTL_LOG_COUNT,        required_argument,      0, OPTC_LOG_COUNT},
@@ -403,17 +475,19 @@ dbg_server_help (
         char * const                    name)
 {       ENTR();
 
-        LOG("%s options:", name);
-        LOG("--%s\t\tshow help info", OPTL_HELP);
-        LOG("--%s\t\tlog file storage path", OPTL_LOG_PATH);
-        LOG("--%s\t\tlog file size limit in MB", OPTL_LOG_SIZE);
-        LOG("--%s\t\tlog file count limit", OPTL_LOG_COUNT);
-        LOG("--%s\t\tdbgmsg server enable", OPTL_DBGMSG_ENABLE);
-        LOG("--%s\t\tdbgmsg server key, used to fetch dbgmsg qid", OPTL_DBGMSG_KEY);
-        LOG("--%s\tdbgmsg server key path, used to generate key when not assigned", OPTL_DBGMSG_KEY_PATH);
-        LOG("--%s\t\tdbgmsg server key id, used to generate key when not assigned", OPTL_DBGMSG_KEY_ID);
+        fprintf(stdout, "%s options:\r\n", name);
+        fprintf(stdout, "--%s\t\tshow help info\r\n", OPTL_HELP);
+        fprintf(stdout, "--%s\tverbose level %d~%d\r\n", OPTL_VERBOSE, DBG_SERVER_VERBOSE_MIN, DBG_SERVER_VERBOSE_MAX);
+        fprintf(stdout, "--%s\t\tlog file storage path\r\n", OPTL_LOG_PATH);
+        fprintf(stdout, "--%s\t\tlog file size limit in MB\r\n", OPTL_LOG_SIZE);
+        fprintf(stdout, "--%s\t\tlog file count limit\r\n", OPTL_LOG_COUNT);
+        fprintf(stdout, "--%s\t\tdbgmsg server enable\r\n", OPTL_DBGMSG_ENABLE);
+        fprintf(stdout, "--%s\t\tdbgmsg server key\r\n", OPTL_DBGMSG_KEY);
+        fprintf(stdout, "--%s\tdbgmsg server key path, used when key not given\r\n", OPTL_DBGMSG_KEY_PATH);
+        fprintf(stdout, "--%s\t\tdbgmsg server key id, used when key not given\r\n", OPTL_DBGMSG_KEY_ID);
 
 exit:   EXIT();
+        dbg_server_exit(0);
         return;
 }       /* dbg_server_help */
 /*------------------------------------*/
@@ -432,6 +506,7 @@ dbg_server_init (
 
         ERR_NULL(gcfg);
         MEMZERO(gcfg, sizeof(GLOBAL_CFG));
+        gcfg->verbose = DBG_SERVER_VERBOSE_DFT;
         gcfg->dbgmsg_server = &(gcfg->DBGMSG_SERVER);
 
         ERR_NULL(gctl);
@@ -452,6 +527,14 @@ dbg_server_init (
 
                 switch (optchar)
                 {
+                case OPTC_HELP:
+                        dbg_server_help(argv[0]);
+                        break;
+                case OPTC_VERBOSE:
+                        ERR_OPTARG_INVALID();
+                        gcfg->verbose = strtol(optarg, NULL, 0);
+                        INF("verbose=%d", gcfg->verbose);
+                        break;
                 case OPTC_LOG_PATH:
                         ERR_OPTARG_INVALID();
                         snprintf(gcfg->log_path, DBG_SERVER_LOG_PATH_LEN, "%s", optarg);
@@ -469,7 +552,6 @@ dbg_server_init (
                         ERR_RANGE(gcfg->log_count, DBG_SERVER_LOG_COUNT_MIN, DBG_SERVER_LOG_COUNT_MAX);
                         INF("log_count=%d", gcfg->log_count);
                         break;
-                /* DBGMSG */
                 case OPTC_DBGMSG_ENABLE:
                         gcfg->dbgmsg_server_enable = true;
                         INF("dbgmsg_server_enable=%s", STRBOOL(gcfg->dbgmsg_server_enable));
@@ -480,7 +562,6 @@ dbg_server_init (
                         INF("key=0x%X", gcfg->dbgmsg_server->key);
                         break;
                 case 0:
-                /* DBGMSG */
                         if (strncmp(optlist[optindex].name, OPTL_DBGMSG_KEY_PATH, strlen(OPTL_DBGMSG_KEY_PATH)) == 0)
                         {
                                 ERR_OPTARG_INVALID();
@@ -499,31 +580,31 @@ dbg_server_init (
                 }
         }
 
+        LOG("verbose=%d", gcfg->verbose);
+
         if (strnlen(gcfg->log_path, DBG_SERVER_LOG_PATH_LEN) < 1)
-        {       /* use default log_path */
+        {       /* default log_path */
                 snprintf(gcfg->log_path, DBG_SERVER_LOG_PATH_LEN, "%s", DBG_SERVER_LOG_PATH_DFT);
         }
         LOG("log_path=%s", gcfg->log_path);
 
         if (gcfg->log_size < 1)
-        {       /* use default log_size */
+        {       /* default log_size */
                 gcfg->log_size = DBG_SERVER_LOG_SIZE_DFT;
         }
-        ERR_RANGE(gcfg->log_size, DBG_SERVER_LOG_SIZE_MIN, DBG_SERVER_LOG_SIZE_MAX);
+        REGULATE_RANGE(gcfg->log_size, DBG_SERVER_LOG_SIZE_MIN, DBG_SERVER_LOG_SIZE_MAX);
         LOG("log_size=%dMB", gcfg->log_size);
 
         if (gcfg->log_count < 1)
-        {       /* use default log_count */
+        {       /* default log_count */
                 gcfg->log_count = DBG_SERVER_LOG_COUNT_DFT;
         }
-        ERR_RANGE(gcfg->log_count, DBG_SERVER_LOG_COUNT_MIN, DBG_SERVER_LOG_COUNT_MAX);
+        REGULATE_RANGE(gcfg->log_count, DBG_SERVER_LOG_COUNT_MIN, DBG_SERVER_LOG_COUNT_MAX);
         LOG("log_count=%d", gcfg->log_count);
 
         ret = dbg_server_mkdir(); ERR_NZERO(ret);
-
-        /* dbg_server_log_scan */
-        ret = dbg_server_ftw(); ERR_NZERO(ret);
-        /* dbg_server_log_create */
+        ret = dbg_server_idx_fetch(); ERR_NZERO(ret);
+        ret = dbg_server_log_create(); ERR_NZERO(ret);
 
 
 
@@ -557,8 +638,6 @@ main (
         if (argc < 2)
         {
                 dbg_server_help(argv[0]);
-                ret = 0;
-                goto exit;
         }
 
         ret = dbg_server_init(argc, argv); ERR_NZERO(ret);
