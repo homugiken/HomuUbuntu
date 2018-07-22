@@ -575,6 +575,7 @@ dbg_server_init (
                                 ERR_RANGE(gcfg->dbgmsg_server->key_id, 0x01, 0xFF);
                                 INF("key_id=%d", gcfg->dbgmsg_server->key_id);
                         }
+                        break;
                 default:
                         break;
                 }
