@@ -8,13 +8,13 @@
 /* GLOBAL */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
 typedef struct GLOBAL_CTL {
-    DBG_SERVER_CTL                      _dbg_server;
-    DBG_SERVER_CTL *                    dbg_server;
+    DBG_SERVER_CTL                      _dbg_svr;
+    DBG_SERVER_CTL *                    dbg_svr;
 } GLOBAL_CTL;
 
 typedef struct GLOBAL_CFG {
-    DBG_SERVER_CFG                      _dbg_server;
-    DBG_SERVER_CFG *                    dbg_server;
+    DBG_SERVER_CFG                      _dbg_svr;
+    DBG_SERVER_CFG *                    dbg_svr;
     uint8_t                             verbose;
 } GLOBAL_CFG;
 
@@ -24,51 +24,34 @@ static GLOBAL_CFG                       _gcfg, * const gcfg = &_gcfg;
 /*____________________________________________________________________________*/
 /* OPTION */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
-#define OPTL_HELP                       "help"
-#define OPTC_HELP                       'h'
-#define OPTL_VERBOSE                    "verbose"
-#define OPTC_VERBOSE                    'v'
-#define OPTL_LOG_PATH                   "path"
-#define OPTC_LOG_PATH                   'p'
-#define OPTL_LOG_SIZE                   "size"
-#define OPTC_LOG_SIZE                   's'
-#define OPTL_LOG_COUNT                  "count"
-#define OPTC_LOG_COUNT                  'c'
-/*________________________________________________________*/
-/* DBGMSG */
-/*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
-#define OPTL_DBGMSG_ENABLE              "msg"
-#define OPTC_DBGMSG_ENABLE              'm'
-#define OPTL_DBGMSG_KEY                 "key"
-#define OPTC_DBGMSG_KEY                 'k'
-#define OPTL_DBGMSG_KEY_PATH            "keypath"
-#define OPTL_DBGMSG_KEY_ID              "keyid"
-#define OPTC_DBGMSG_KEY_ID              'i'
-
 extern char *                           optarg;
 static struct option                    optlist[] =
 {
-        {OPTL_HELP,                     no_argument,            0, OPTC_HELP},
-        {OPTL_VERBOSE,                  required_argument,      0, OPTC_VERBOSE},
-        {OPTL_LOG_PATH,                 required_argument,      0, OPTC_LOG_PATH},
-        {OPTL_LOG_SIZE,                 required_argument,      0, OPTC_LOG_SIZE},
-        {OPTL_LOG_COUNT,                required_argument,      0, OPTC_LOG_COUNT},
-        /* DBGMSG */
-        {OPTL_DBGMSG_ENABLE,            no_argument,            0, OPTC_DBGMSG_ENABLE},
-        {OPTL_DBGMSG_KEY,               required_argument,      0, OPTC_DBGMSG_KEY},
-        {OPTL_DBGMSG_KEY_PATH,          required_argument,      0, 0},
-        {OPTL_DBGMSG_KEY_ID,            required_argument,      0, OPTC_DBGMSG_KEY_ID},
-        {0, 0, 0, 0}
+    /* DBG_SVR */
+    {DBG_SVR_OPTL_HELP,                 no_argument,        0, DBG_SVR_OPTC_HELP},
+    {DBG_SVR_OPTL_VERBOSE,              required_argument,  0, DBG_SVR_OPTC_VERBOSE},
+    {DBG_SVR_OPTL_LOG_PATH,             required_argument,  0, DBG_SVR_OPTC_LOG_PATH},
+    {DBG_SVR_OPTL_LOG_SIZE,             required_argument,  0, DBG_SVR_OPTC_LOG_SIZE},
+    {DBG_SVR_OPTL_LOG_COUNT,            required_argument,  0, DBG_SVR_OPTC_LOG_COUNT},
+    /* DBGMSG_SVR */
+    {DBGMSG_SVR_OPTL_ENABLE,            no_argument,        0, DBGMSG_SVR_OPTC_ENABLE},
+    {DBGMSG_SVR_OPTL_KEY,               required_argument,  0, DBGMSG_SVR_OPTC_KEY},
+    {DBGMSG_SVR_OPTL_KEY_PATH,          required_argument,  0, 0},
+    {DBGMSG_SVR_OPTL_KEY_ID,            required_argument,  0, 0},
+    {0, 0, 0, 0}
 };
 
+/*____________________________________________________________________________*/
+/* DECLARE */
+/*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
+static void dbgstd_printf (const char * fmt, ...);
+static void dbgmsg_printf (const char * fmt, ...);
+/*························································*/
 
-// /*____________________________________________________________________________*/
-// /* DBGMSG_SERVER*/
-// /*------------------------------------*/
-// static int dbgmsg_server_reset (DBGMSG_SERVER_CTL * const ctl);
-// static void dbgmsg_server_release (DBGMSG_SERVER_CTL * const ctl);
-// static int dbgmsg_server_init (DBGMSG_SERVER_CTL * const ctl, DBGMSG_SERVER_CFG * const cfg);
-// /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
+
+
+
+
 
 /*____________________________________________________________________________*/
 /* DBGSTD */
@@ -106,7 +89,131 @@ dbgstd_printf (
 
     return;
 }
-/*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
+
+
+
+
+static void
+dbg_svr_help (
+    char * const                        name)
+{
+    ENTR();
+
+    printf("%s options:\r\n", name);
+    /* DBG_SVR */
+    printf("--%s\t\t%s\r\n", DBG_SVR_OPTL_HELP, DBG_SVR_OPTS_HELP);
+    printf("--%s\t%s\r\n", DBG_SVR_OPTL_VERBOSE, DBG_SVR_OPTS_VERBOSE, DBG_VERBOSE_MIN, DBG_VERBOSE_MAX);
+    printf("--%s\t\t%s\r\n", DBG_SVR_OPTL_LOG_PATH, DBG_SVR_OPTS_LOG_PATH);
+    printf("--%s\t\t%s\r\n", DBG_SVR_OPTL_LOG_SIZE, DBG_SVR_OPTS_LOG_SIZE);
+    printf("--%s\t\t%s\r\n", DBG_SVR_OPTL_LOG_COUNT, DBG_SVR_OPTS_LOG_COUNT);
+    /* DBGMSG_SVR */
+    printf("--%s\t\t%s\r\n", DBGMSG_SVR_OPTL_ENABLE, DBGMSG_SVR_OPTS_ENABLE);
+    printf("--%s\t\t%s\r\n", DBGMSG_SVR_OPTL_KEY, DBGMSG_SVR_OPTS_KEY);
+    printf("--%s\t%s\r\n", DBGMSG_SVR_OPTL_KEY_PATH, DBGMSG_SVR_OPTS_KEY_PATH);
+    printf("--%s\t\t%s\r\n", DBGMSG_SVR_OPTL_KEY_ID, DBGMSG_SVR_OPTS_KEY_ID);
+
+LEXIT;
+    return;
+}
+
+/*____________________________________________________________________________*/
+/* MAIN */
+/*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
+#define main_help                       dbg_svr_help
+// #define main_init                       dbg_svr_init
+// #define main_loop                       dbg_svr_loop
+
+
+
+
+
+
+
+
+
+
+static int
+main_init (
+    const int                           argc,
+    char * const                        argv[])
+{   ENTR();
+    int                                 ret = -1;
+
+    ERR_NPOS(argc); ERR_NULL(argv);
+
+    if (gctl->dbg_svr == NULL)
+    {
+        gctl->dbg_svr = &(gctl->_dbg_svr);
+    }
+
+    if (gcfg->dbg_svr == NULL)
+    {
+        gcfg->dbg_svr = &(gcfg->_dbg_svr);
+    }
+
+
+    ret = 0;
+LEXIT;
+    return(ret);
+LERROR;
+    GOEXIT;
+}
+
+static void
+main_exit (
+    int                                 ret)
+{   ENTR();
+
+    LOG("ret=%d", ret);
+    if (gctl->dbg_svr != NULL)
+    {
+        // dbg_svr_release(gctl->dbg_svr);
+    }
+    MEMZ(gctl, sizeof(GLOBAL_CTL));
+
+LEXIT;
+    exit(ret);
+}
+
+int
+main (
+    const int                           argc,
+    char * const                        argv[])
+{   ENTR();
+    int                                 ret = -1;
+
+    MEMZ(gctl, sizeof(GLOBAL_CTL));
+    MEMZ(gcfg, sizeof(GLOBAL_CFG));
+    gcfg->verbose = DBG_VERBOSE_DFT;
+    ERR_NPOS(argc); ERR_NULL(argv);
+
+    if (argc < 2)
+    {
+        main_help(argv[0]);
+        GOEXIT;
+    }
+
+    // ret = dbg_svr_init(argc, argv); ERR_NZERO(ret);
+
+    // ret = dbg_svr_loop(); ERR_NZERO(ret);
+
+    ret = 0;
+LEXIT;
+    main_exit(ret);
+    return(ret);
+LERROR;
+    GOEXIT;
+}
+
+
+// /*____________________________________________________________________________*/
+// /* DBGMSG_SERVER*/
+// /*------------------------------------*/
+// static int dbgmsg_svr_reset (DBGMSG_SERVER_CTL * const ctl);
+// static void dbgmsg_svr_release (DBGMSG_SERVER_CTL * const ctl);
+// static int dbgmsg_svr_init (DBGMSG_SERVER_CTL * const ctl, DBGMSG_SERVER_CFG * const cfg);
+// /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
+
 
 // /*____________________________________________________________________________*/
 // /* DBGMSG */
@@ -627,77 +734,3 @@ dbgstd_printf (
 // }       /* dbg_server_init */
 // /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
 
-/*____________________________________________________________________________*/
-/* MAIN */
-/*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
-#define main_help                       dbg_server_help
-#define main_init                       dbg_server_init
-#define main_loop                       dbg_server_loop
-
-static void
-main_help (
-    char * const                        name)
-{
-    ENTR();
-
-    fprintf(stdout, "%s options:\r\n", name);
-    fprintf(stdout, "--%s\t\tshow help info\r\n", OPTL_HELP);
-    fprintf(stdout, "--%s\tverbose level <%d,%d>\r\n", OPTL_VERBOSE, DBG_VERBOSE_MIN, DBG_VERBOSE_MAX);
-    fprintf(stdout, "--%s\t\tlog file storage path\r\n", OPTL_LOG_PATH);
-    fprintf(stdout, "--%s\t\tlog file size limit in MB\r\n", OPTL_LOG_SIZE);
-    fprintf(stdout, "--%s\t\tlog file count limit\r\n", OPTL_LOG_COUNT);
-    fprintf(stdout, "--%s\t\tdbgmsg server enable\r\n", OPTL_DBGMSG_ENABLE);
-    fprintf(stdout, "--%s\t\tdbgmsg server key\r\n", OPTL_DBGMSG_KEY);
-    fprintf(stdout, "--%s\tdbgmsg server key path, used when key not given\r\n", OPTL_DBGMSG_KEY_PATH);
-    fprintf(stdout, "--%s\t\tdbgmsg server key id, used when key not given\r\n", OPTL_DBGMSG_KEY_ID);
-
-LEXIT;
-    return;
-}
-
-void
-main_exit (
-    int                                 ret)
-{
-    ENTR();
-
-    LOG("ret=%d", ret);
-    if (gctl->dbg_server != NULL)
-    {
-        // dbg_server_release(gctl->dbg_server);
-    }
-    MEMZ(gctl, sizeof(GLOBAL_CTL));
-
-LEXIT;
-    exit(ret);
-}
-
-int
-main (
-    const int                           argc,
-    char * const                        argv[])
-{
-    int                                 ret = -1;
-    ERR_NPOS(argc); ERR_NULL(argv);
-    ERR_NULL(gctl); ERR_NULL(gcfg);
-    gcfg->verbose = DBG_VERBOSE_DFT;
-    ENTR();
-
-    if (argc < 2)
-    {
-        main_help(argv[0]);
-        GOEXIT;
-    }
-
-    // ret = dbg_server_init(argc, argv); ERR_NZERO(ret);
-
-    // ret = dbg_server_loop(); ERR_NZERO(ret);
-
-    ret = 0;
-LEXIT;
-    main_exit(ret);
-    return(ret);
-LERROR;
-    GOEXIT;
-}
-/*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
