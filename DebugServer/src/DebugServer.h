@@ -54,7 +54,7 @@
 #define DBG_ENABLE_WRN                  1   /* WRN */
 #define DBG_ENABLE_LOG                  1   /* LOG */
 #define DBG_ENABLE_INF                  1   /* INF */
-#define DBG_ENABLE_TAG                  1   /* TAG */
+#define DBG_ENABLE_TAG                  0   /* TAG */
 /*························································*/
 #define DBG_VERBOSE_MIN                 0
 #define DBG_VERBOSE_ERR                 0   /* ERR */
@@ -197,10 +197,11 @@ typedef struct DBGMSG_SVR_CFG {
 } DBGMSG_SVR_CFG;
 
 typedef struct DBGMSG_SVR_CTL {
-    DBGMSG_SVR_CFG                      CFG;
-    DBGMSG_SVR_CFG *                    cfg;
+    // DBGMSG_SVR_CFG                      CFG;
+    // DBGMSG_SVR_CFG *                    cfg;
     // key_t                               key;
     int                                 qid;
+    FILE *                              log_fp;
     bool                                ready;
     // time_t                              tnow;
     // struct tm *                         local;
@@ -214,7 +215,7 @@ typedef struct DBGMSG_SVR_CTL {
 #define DBG_SVR_OPTS_HELP               "show help info"
 #define DBG_SVR_OPTL_VERBOSE            "verbose"
 #define DBG_SVR_OPTC_VERBOSE            'v'
-#define DBG_SVR_OPTS_VERBOSE            "set verbosity level <%d,%d>"
+#define DBG_SVR_OPTS_VERBOSE            "set verbosity level"
 #define DBG_SVR_OPTL_LOG_PATH           "path"
 #define DBG_SVR_OPTC_LOG_PATH           'p'
 #define DBG_SVR_OPTS_LOG_PATH           "log file storage path"
@@ -246,23 +247,24 @@ typedef struct DBG_SVR_CFG {
     char                                log_path[DBG_SVR_LOG_PATH_LEN];
     int                                 log_size;   /* MB */
     int                                 log_count;
-    DBGMSG_SVR_CFG                      _dbgmsg, * dbgmsg;
     bool                                dbgmsg_enable;
+    DBGMSG_SVR_CFG                      _dbgmsg, * dbgmsg;
 } DBG_SVR_CFG;
 
 typedef struct DBG_SVR_CTL {
+    DBG_SVR_CFG *                       cfg;
     pid_t                               pid;
     pid_t                               ppid;
-    DBGMSG_SVR_CTL                      _dbgmsg, * dbgmsg;
     time_t                              t_now;
     struct tm *                         local;
     char                                log_name[DBG_SVR_LOG_NAME_LEN];
     char                                log_path_name[DBG_SVR_LOG_PATH_NAME_LEN];
-    int                                 log_fp;
+    FILE *                              log_fp;
     char                                idx_path_name[DBG_SVR_IDX_PATH_NAME_LEN];
     FILE *                              idx_fp;
     int                                 idx_create;
     int                                 idx_delete;
+    DBGMSG_SVR_CTL                      _dbgmsg, * dbgmsg;
 } DBG_SVR_CTL;
 
 // static int dbg_server_loop (void);

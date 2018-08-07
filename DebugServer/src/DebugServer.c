@@ -3,23 +3,22 @@
 /* INCLUDE */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
 #include "DebugServer.h"
+/* -Wno-xxxx */
 
 /*____________________________________________________________________________*/
 /* GLOBAL */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
-typedef struct GLOBAL_CTL {
-    DBG_SERVER_CTL                      _dbg_svr;
-    DBG_SERVER_CTL *                    dbg_svr;
-} GLOBAL_CTL;
-
 typedef struct GLOBAL_CFG {
-    DBG_SERVER_CFG                      _dbg_svr;
-    DBG_SERVER_CFG *                    dbg_svr;
+    DBG_SVR_CFG                         _dbg_svr, * dbg_svr;
     uint8_t                             verbose;
 } GLOBAL_CFG;
 
-static GLOBAL_CTL                       _gctl, * const gctl = &_gctl;
+typedef struct GLOBAL_CTL {
+    DBG_SVR_CTL                         _dbg_svr, * dbg_svr;
+} GLOBAL_CTL;
+
 static GLOBAL_CFG                       _gcfg, * const gcfg = &_gcfg;
+static GLOBAL_CTL                       _gctl, * const gctl = &_gctl;
 
 /*____________________________________________________________________________*/
 /* OPTION */
@@ -48,9 +47,11 @@ static void dbgstd_printf (const char * fmt, ...);
 static void dbgmsg_printf (const char * fmt, ...);
 /*························································*/
 
+static void dbgmsg_svr_help (void);
 
 
-
+/*························································*/
+static void dbg_svr_help (void);
 
 
 /*____________________________________________________________________________*/
@@ -90,23 +91,14 @@ dbgstd_printf (
     return;
 }
 
-
-
+/*____________________________________________________________________________*/
+/* DBGMSG_SVR */
+/*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
 
 static void
-dbg_svr_help (
-    char * const                        name)
-{
-    ENTR();
+dbgmsg_svr_help (void)
+{   ENTR();
 
-    printf("%s options:\r\n", name);
-    /* DBG_SVR */
-    printf("--%s\t\t%s\r\n", DBG_SVR_OPTL_HELP, DBG_SVR_OPTS_HELP);
-    printf("--%s\t%s\r\n", DBG_SVR_OPTL_VERBOSE, DBG_SVR_OPTS_VERBOSE, DBG_VERBOSE_MIN, DBG_VERBOSE_MAX);
-    printf("--%s\t\t%s\r\n", DBG_SVR_OPTL_LOG_PATH, DBG_SVR_OPTS_LOG_PATH);
-    printf("--%s\t\t%s\r\n", DBG_SVR_OPTL_LOG_SIZE, DBG_SVR_OPTS_LOG_SIZE);
-    printf("--%s\t\t%s\r\n", DBG_SVR_OPTL_LOG_COUNT, DBG_SVR_OPTS_LOG_COUNT);
-    /* DBGMSG_SVR */
     printf("--%s\t\t%s\r\n", DBGMSG_SVR_OPTL_ENABLE, DBGMSG_SVR_OPTS_ENABLE);
     printf("--%s\t\t%s\r\n", DBGMSG_SVR_OPTL_KEY, DBGMSG_SVR_OPTS_KEY);
     printf("--%s\t%s\r\n", DBGMSG_SVR_OPTL_KEY_PATH, DBGMSG_SVR_OPTS_KEY_PATH);
@@ -117,19 +109,200 @@ LEXIT;
 }
 
 /*____________________________________________________________________________*/
+/* DBG_SVR */
+/*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
+static int
+dbg_svr_idx_write (
+    DBG_SVR_CTL * const                 ctl)
+{   ENTR();
+    int                                 ret = -1;
+
+    ret = 0;
+LEXIT;
+    return(ret);
+LERROR;
+    GOEXIT;
+}
+
+static int
+dbg_svr_idx_read (
+    DBG_SVR_CTL * const                 ctl)
+{   ENTR();
+    int                                 ret = -1;
+
+    ret = 0;
+LEXIT;
+    return(ret);
+LERROR;
+    GOEXIT;
+}
+
+static int
+dbg_svr_idx_close (
+    DBG_SVR_CTL * const                 ctl)
+{   ENTR();
+    int                                 ret = -1;
+
+    ret = 0;
+LEXIT;
+    return(ret);
+LERROR;
+    GOEXIT;
+}
+
+static int
+dbg_svr_idx_open (
+    DBG_SVR_CTL * const                 ctl)
+{   ENTR();
+    int                                 ret = -1;
+
+    ret = 0;
+LEXIT;
+    return(ret);
+LERROR;
+    GOEXIT;
+}
+static int
+dbg_svr_log_write_trailer (
+    DBG_SVR_CTL * const                 ctl)
+{   ENTR();
+    int                                 ret = -1;
+
+    ret = 0;
+LEXIT;
+    return(ret);
+LERROR;
+    GOEXIT;
+}
+
+static int
+dbg_svr_log_write_header (
+    DBG_SVR_CTL * const                 ctl)
+{   ENTR();
+    int                                 ret = -1;
+
+    ret = 0;
+LEXIT;
+    return(ret);
+LERROR;
+    GOEXIT;
+}
+
+static int
+dbg_svr_log_close (
+    DBG_SVR_CTL * const                 ctl)
+{   ENTR();
+    int                                 ret = -1;
+
+    ret = 0;
+LEXIT;
+    return(ret);
+LERROR;
+    GOEXIT;
+}
+
+static int
+dbg_svr_log_open (
+    DBG_SVR_CTL * const                 ctl)
+{   ENTR();
+    int                                 ret = -1;
+
+    ret = 0;
+LEXIT;
+    return(ret);
+LERROR;
+    GOEXIT;
+}
+
+static int
+dbg_svr_mkdir (
+    DBG_SVR_CTL * const                 ctl)
+{   ENTR();
+    int                                 ret = -1;
+
+    ret = 0;
+LEXIT;
+    return(ret);
+LERROR;
+    GOEXIT;
+}
+
+static int
+dbg_svr_cfg_dft (
+    DBG_SVR_CFG * const                 cfg)
+{   ENTR();
+    int                                 ret = -1;
+
+    ret = 0;
+LEXIT;
+    return(ret);
+LERROR;
+    GOEXIT;
+}
+
+static int
+dbg_svr_cfg (
+    DBG_SVR_CFG * const                 cfg,
+    const int                           argc,
+    char * const                        argv[])
+{   ENTR();
+
+    int                                 ret = -1;
+
+    ret = 0;
+LEXIT;
+    return(ret);
+LERROR;
+    GOEXIT;
+}
+
+static void
+dbg_svr_help (void)
+{   ENTR();
+
+    printf("--%s\t\t%s\r\n", DBG_SVR_OPTL_HELP, DBG_SVR_OPTS_HELP);
+    printf("--%s\t%s <%d,%d>\r\n", DBG_SVR_OPTL_VERBOSE, DBG_SVR_OPTS_VERBOSE, DBG_VERBOSE_MIN, DBG_VERBOSE_MAX);
+    printf("--%s\t\t%s\r\n", DBG_SVR_OPTL_LOG_PATH, DBG_SVR_OPTS_LOG_PATH);
+    printf("--%s\t\t%s\r\n", DBG_SVR_OPTL_LOG_SIZE, DBG_SVR_OPTS_LOG_SIZE);
+    printf("--%s\t\t%s\r\n", DBG_SVR_OPTL_LOG_COUNT, DBG_SVR_OPTS_LOG_COUNT);
+
+    dbgmsg_svr_help();
+
+LEXIT;
+    return;
+}
+
+static void
+dbg_svr_release (
+    DBG_SVR_CTL * const                 ctl)
+{   ENTR();
+
+LEXIT;
+    return;
+LERROR;
+    GOEXIT;
+}
+
+static int
+dbg_svr_init (
+    DBG_SVR_CTL * const                 ctl,
+    DBG_SVR_CFG * const                 cfg,
+    const int                           argc,
+    char * const                        argv[])
+{   ENTR();
+    int                                 ret = -1;
+
+    ret = 0;
+LEXIT;
+    return(ret);
+LERROR;
+    dbg_svr_release(ctl);
+    GOEXIT;
+}
+
+/*____________________________________________________________________________*/
 /* MAIN */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
-#define main_help                       dbg_svr_help
-// #define main_init                       dbg_svr_init
-// #define main_loop                       dbg_svr_loop
-
-
-
-
-
-
-
-
 
 
 static int
@@ -141,14 +314,14 @@ main_init (
 
     ERR_NPOS(argc); ERR_NULL(argv);
 
-    if (gctl->dbg_svr == NULL)
-    {
-        gctl->dbg_svr = &(gctl->_dbg_svr);
-    }
-
     if (gcfg->dbg_svr == NULL)
     {
         gcfg->dbg_svr = &(gcfg->_dbg_svr);
+    }
+
+    if (gctl->dbg_svr == NULL)
+    {
+        gctl->dbg_svr = &(gctl->_dbg_svr);
     }
 
 
@@ -160,15 +333,30 @@ LERROR;
 }
 
 static void
+main_help (
+    char * const                        name)
+{   ENTR();
+
+    printf("%s options:\r\n", name);
+
+    dbg_svr_help();
+
+LEXIT;
+    return;
+}
+
+static void
 main_exit (
     int                                 ret)
 {   ENTR();
 
     LOG("ret=%d", ret);
+
     if (gctl->dbg_svr != NULL)
     {
-        // dbg_svr_release(gctl->dbg_svr);
+        dbg_svr_release(gctl->dbg_svr);
     }
+
     MEMZ(gctl, sizeof(GLOBAL_CTL));
 
 LEXIT;
@@ -182,8 +370,8 @@ main (
 {   ENTR();
     int                                 ret = -1;
 
-    MEMZ(gctl, sizeof(GLOBAL_CTL));
     MEMZ(gcfg, sizeof(GLOBAL_CFG));
+    MEMZ(gctl, sizeof(GLOBAL_CTL));
     gcfg->verbose = DBG_VERBOSE_DFT;
     ERR_NPOS(argc); ERR_NULL(argv);
 
