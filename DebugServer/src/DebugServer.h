@@ -164,9 +164,6 @@ typedef struct DBGSTD_CTL {
 /*____________________________________________________________________________*/
 /* DBGMSG_SVR */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
-#define DBGMSG_SVR_OPTL_ENABLE          "msg"
-#define DBGMSG_SVR_OPTC_ENABLE          'm'
-#define DBGMSG_SVR_OPTS_ENABLE          "dbgmsg server enable"
 #define DBGMSG_SVR_OPTL_KEY             "key"
 #define DBGMSG_SVR_OPTC_KEY             'k'
 #define DBGMSG_SVR_OPTS_KEY             "dbgmsg server msgkey"
@@ -210,12 +207,6 @@ typedef struct DBGMSG_SVR_CTL {
 /*____________________________________________________________________________*/
 /* DBG_SVR */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
-#define DBG_SVR_OPTL_HELP               "help"
-#define DBG_SVR_OPTC_HELP               'h'
-#define DBG_SVR_OPTS_HELP               "show help info"
-#define DBG_SVR_OPTL_VERBOSE            "verbose"
-#define DBG_SVR_OPTC_VERBOSE            'v'
-#define DBG_SVR_OPTS_VERBOSE            "set verbosity level"
 #define DBG_SVR_OPTL_LOG_PATH           "path"
 #define DBG_SVR_OPTC_LOG_PATH           'p'
 #define DBG_SVR_OPTS_LOG_PATH           "log file storage path"
@@ -225,6 +216,9 @@ typedef struct DBGMSG_SVR_CTL {
 #define DBG_SVR_OPTL_LOG_COUNT          "count"
 #define DBG_SVR_OPTC_LOG_COUNT          'c'
 #define DBG_SVR_OPTS_LOG_COUNT          "log file quantity limit "
+#define DBG_SVR_OPTL_DBGMSG_SVR         "msg"
+#define DBG_SVR_OPTC_DBGMSG_SVR         'm'
+#define DBG_SVR_OPTS_DBGMSG_SVR         "dbgmsg server enable"
 /*························································*/
 #define DBG_SVR_LOG_PATH_LEN            1024
 #define DBG_SVR_LOG_NAME_LEN            1024
@@ -234,8 +228,10 @@ typedef struct DBGMSG_SVR_CTL {
 #define DBG_SVR_LOG_SIZE_MAX            100
 #define DBG_SVR_LOG_SIZE_DFT            DBG_SVR_LOG_SIZE_MIN
 #define DBG_SVR_LOG_COUNT_MIN           10
-#define DBG_SVR_LOG_COUNT_MAX           1000
-#define DBG_SVR_LOG_COUNT_DFT           DBG_SVR_LOG_COUNT_MAX
+#define DBG_SVR_LOG_COUNT_MAX           100
+#define DBG_SVR_LOG_COUNT_DFT           DBG_SVR_LOG_COUNT_MIN
+/*························································*/
+#define DBG_SVR_DBGSMG_SVR_ENABLE_DFT   false
 /*························································*/
 #define DBG_SVR_IDX_NAME_LEN            32
 #define DBG_SVR_IDX_PATH_NAME_LEN       (DBG_SVR_LOG_PATH_LEN + DBG_SVR_IDX_NAME_LEN)
@@ -247,8 +243,8 @@ typedef struct DBG_SVR_CFG {
     char                                log_path[DBG_SVR_LOG_PATH_LEN];
     int                                 log_size;   /* MB */
     int                                 log_count;
-    bool                                dbgmsg_enable;
-    DBGMSG_SVR_CFG                      _dbgmsg, * dbgmsg;
+    bool                                dbgmsg_svr_enable;
+    DBGMSG_SVR_CFG                      _dbgmsg_svr, * dbgmsg_svr;
 } DBG_SVR_CFG;
 
 typedef struct DBG_SVR_CTL {
@@ -264,7 +260,7 @@ typedef struct DBG_SVR_CTL {
     FILE *                              idx_fp;
     int                                 idx_create;
     int                                 idx_delete;
-    DBGMSG_SVR_CTL                      _dbgmsg, * dbgmsg;
+    DBGMSG_SVR_CTL                      _dbgmsg_svr, * dbgmsg_svr;
 } DBG_SVR_CTL;
 
 // static int dbg_server_loop (void);
