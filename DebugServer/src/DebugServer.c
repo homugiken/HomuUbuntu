@@ -18,20 +18,15 @@ typedef struct GLOBAL_CTL {
 
 static GLOBAL_CFG                       _gcfg, * const gcfg = &_gcfg;
 static GLOBAL_CTL                       _gctl, * const gctl = &_gctl;
+static uint8_t                          gverbose = DBG_SVR_VERBOSE_DFT;
 
 /*____________________________________________________________________________*/
 /* OPTION */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
-#define GOPTL_HELP                      "help"
-#define GOPTC_HELP                      'h'
-#define GOPTS_HELP                      "show help info"
-#define GOPTL_VERBOSE                   "verbose"
-#define GOPTC_VERBOSE                   'v'
-#define GOPTS_VERBOSE                   "set verbosity level"
-
 extern char *                           optarg;
 static struct option                    optlist[] =
 {
+    /* GLOBAL */
     {GOPTL_HELP,                        no_argument,        0,                  GOPTC_HELP},
     {GOPTL_VERBOSE,                     required_argument,  0,                  GOPTC_VERBOSE},
     /* DBG_SVR */
@@ -49,47 +44,12 @@ static struct option                    optlist[] =
 #define OPTARG_INVALID(ARG)             (ARG==NULL)||(ARG[0]=='-')||(strlen(ARG)<1)
 #define ERR_OPTARG_INVALID() \
 DOWHILE(if(OPTARG_INVALID(optarg)){ERR("option --%s need argument", optlist[optindex].name); goto error;})
+
 /*____________________________________________________________________________*/
 /* DECLARE */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
 static void dbgstd_printf (const char * fmt, ...);
 static void dbgmsg_printf (const char * fmt, ...);
-/*························································*/
-
-/*····································*/
-static void dbgmsg_svr_cfg_show (DBGMSG_SVR_CFG * const cfg);
-static int dbgmsg_svr_cfg (DBGMSG_SVR_CFG * const cfg, const int argc, char * const argv[]);
-static void dbgmsg_svr_help (void);
-static void dbgmsg_svr_release (DBGMSG_SVR_CTL * const ctl);
-static int dbgmsg_svr_init (DBGMSG_SVR_CTL * const ctl, DBGMSG_SVR_CFG * const cfg);
-/*························································*/
-static int dbg_svr_idx_delete_increase (DBG_SVR_CTL * const ctl, uint32_t num);
-static int dbg_svr_idx_create_increase (DBG_SVR_CTL * const ctl, uint32_t num);
-static int dbg_svr_idx_write (DBG_SVR_CTL * const ctl);
-static int dbg_svr_idx_read (DBG_SVR_CTL * const ctl);
-static void dbg_svr_idx_close (DBG_SVR_CTL * const ctl);
-static int dbg_svr_idx_open (DBG_SVR_CTL * const ctl);
-/*····································*/
-static int dbg_svr_log_shift (DBG_SVR_CTL * const ctl);
-static int dbg_svr_log_write (DBG_SVR_CTL * const ctl, uint8_t * const buf, uint32_t len);
-static int dbg_svr_log_write_trailer (DBG_SVR_CTL * const ctl);
-static int dbg_svr_log_write_header (DBG_SVR_CTL * const ctl);
-static void dbg_svr_log_close (DBG_SVR_CTL * const ctl);
-static int dbg_svr_log_open (DBG_SVR_CTL * const ctl);
-/*····································*/
-static int dbg_svr_mkdir (DBG_SVR_CTL * const ctl);
-static void dbg_svr_cfg_show (DBG_SVR_CFG * const cfg);
-static int dbg_svr_cfg (DBG_SVR_CFG * const cfg, const int argc, char * const argv[]);
-static void dbg_svr_help (void);
-static void dbg_svr_release (DBG_SVR_CTL * const ctl);
-static int dbg_svr_init (DBG_SVR_CTL * const ctl, DBG_SVR_CFG * const cfg);
-/*························································*/
-static int main_loop (void);
-static void main_cfg_show (void);
-static int main_cfg (const int argc, char * const argv[]);
-static void main_help (char * const name);
-static void main_exit (int ret);
-static int main_init (void);
 
 /*____________________________________________________________________________*/
 /* DBGSTD */
@@ -163,7 +123,7 @@ dbgmsg_svr_cfg (
     MEMZ(cfg, sizeof(DBGMSG_SVR_CFG));
     while (1)
     {
-        optchar = getopt_long(argc, argv, "", optlist, &optindex);
+        optchar = getopt_long_only(argc, argv, "", optlist, &optindex);
         if (optchar == -1) { break; }
 
         switch (optchar)
@@ -202,7 +162,7 @@ static void
 dbgmsg_svr_help (void)
 {   ENTR();
 
-    printf("--%s\t\t%s\r\n", DBGMSG_SVR_OPTL_KEY, DBGMSG_SVR_OPTS_KEY);
+    printf("-%c/--%s\t%s\r\n", DBGMSG_SVR_OPTC_KEY, DBGMSG_SVR_OPTL_KEY, DBGMSG_SVR_OPTS_KEY);
     printf("--%s\t%s\r\n", DBGMSG_SVR_OPTL_KEY_PATH, DBGMSG_SVR_OPTS_KEY_PATH);
     printf("--%s\t\t%s\r\n", DBGMSG_SVR_OPTL_KEY_ID, DBGMSG_SVR_OPTS_KEY_ID);
 
@@ -433,9 +393,27 @@ LERROR;
 /*····································*/
 static int
 dbg_svr_mkdir (
-    DBG_SVR_CTL * const                 ctl)
+    DBG_SVR_CFG * const                 cfg)
 {   ENTR();
     int                                 ret = -1;
+    int                                 len;
+    char                                strdir[DBG_SVR_LOG_PATH_LEN];
+
+    len = strlen(cfg->log_path);
+    for (int i = 0; i < len; i++)
+    {
+        if (((cfg->log_path[i] == '/') && (i > 0)) || (i == (len - 1)))
+        {
+            MEMZ(strdir, DBG_SVR_LOG_PATH_LEN);
+            snprintf(strdir, (i + 2), "%s", cfg->log_path);
+            INF("mkdir=\"%s\"", strdir);
+            ret = mkdir(strdir, DEFFILEMODE);
+            if ((ret < 0) && (errno != EEXIST))
+            {
+                ERR_NZERO(ret);
+            }
+        }
+    }
 
     ret = 0;
 LEXIT;
@@ -453,7 +431,7 @@ dbg_svr_cfg_show (
 
     LOG("dbg_svr->cfg->log_path=\"%s\"", cfg->log_path);
     LOG("dbg_svr->cfg->log_size=%d", cfg->log_size);
-    LOG("dbg_svr->cfg->log_count=\"%s\"", cfg->log_count);
+    LOG("dbg_svr->cfg->log_count=%d", cfg->log_count);
     LOG("dbg_svr->cfg->dbgmsg_svr_enable=\"%s\"", STRBOOL(cfg->dbgmsg_svr_enable));
 
     if (cfg->dbgmsg_svr_enable == true)
@@ -483,7 +461,7 @@ dbg_svr_cfg (
     MEMZ(cfg, sizeof(DBG_SVR_CFG));
     while (1)
     {
-        optchar = getopt_long(argc, argv, "", optlist, &optindex);
+        optchar = getopt_long_only(argc, argv, "", optlist, &optindex);
         if (optchar == -1) { break; }
 
         switch (optchar)
@@ -499,7 +477,6 @@ dbg_svr_cfg (
         case DBG_SVR_OPTC_LOG_COUNT:
             ERR_OPTARG_INVALID();
             cfg->log_count = strtol(optarg, NULL, 0);
-            ERR_RANGE(cfg->log_count, DBG_SVR_LOG_COUNT_MIN, DBG_SVR_LOG_COUNT_MAX);
             break;
         case DBG_SVR_OPTC_DBGMSG_SVR:
             cfg->dbgmsg_svr_enable = true;
@@ -526,10 +503,6 @@ dbg_svr_cfg (
     }
     ERR_RANGE(cfg->log_count, DBG_SVR_LOG_COUNT_MIN, DBG_SVR_LOG_COUNT_MAX);
 
-    if (cfg->dbgmsg_svr_enable != true)
-    {
-        cfg->dbgmsg_svr_enable = DBG_SVR_DBGSMG_SVR_ENABLE_DFT;
-    }
     if (cfg->dbgmsg_svr_enable == true)
     {
         cfg->dbgmsg_svr = &(cfg->_dbgmsg_svr);
@@ -547,10 +520,10 @@ static void
 dbg_svr_help (void)
 {   ENTR();
 
-    printf("--%s\t\t%s\r\n", DBG_SVR_OPTL_LOG_PATH, DBG_SVR_OPTS_LOG_PATH);
-    printf("--%s\t\t%s\r\n", DBG_SVR_OPTL_LOG_SIZE, DBG_SVR_OPTS_LOG_SIZE);
-    printf("--%s\t\t%s\r\n", DBG_SVR_OPTL_LOG_COUNT, DBG_SVR_OPTS_LOG_COUNT);
-    printf("--%s\t\t%s\r\n", DBG_SVR_OPTL_DBGMSG_SVR, DBG_SVR_OPTS_DBGMSG_SVR);
+    printf("-%c/--%s\t%s\r\n", DBG_SVR_OPTC_LOG_PATH, DBG_SVR_OPTL_LOG_PATH, DBG_SVR_OPTS_LOG_PATH);
+    printf("-%c/--%s\t%s <%d,%d>\r\n", DBG_SVR_OPTC_LOG_SIZE, DBG_SVR_OPTL_LOG_SIZE, DBG_SVR_OPTS_LOG_SIZE, DBG_SVR_LOG_SIZE_MIN, DBG_SVR_LOG_SIZE_MAX);
+    printf("-%c/--%s\t%s <%d,%d>\r\n", DBG_SVR_OPTC_LOG_COUNT, DBG_SVR_OPTL_LOG_COUNT, DBG_SVR_OPTS_LOG_COUNT, DBG_SVR_LOG_COUNT_MIN, DBG_SVR_LOG_COUNT_MAX);
+    printf("-%c/--%s\t%s\r\n", DBG_SVR_OPTC_DBGMSG_SVR, DBG_SVR_OPTL_DBGMSG_SVR, DBG_SVR_OPTS_DBGMSG_SVR);
 
     dbgmsg_svr_help();
 
@@ -597,7 +570,7 @@ dbg_svr_init (
     ctl->ppid = getppid();
     LOG("pid=%d ppid=%d", ctl->pid, ctl->ppid);
 
-    ret = dbg_svr_mkdir(ctl); ERR_NZERO(ret);
+    ret = dbg_svr_mkdir(cfg); ERR_NZERO(ret);
     ret = dbg_svr_idx_open(ctl); ERR_NZERO(ret);
     ret = dbg_svr_idx_read(ctl); ERR_NZERO(ret);
     ret = dbg_svr_log_open(ctl); ERR_NZERO(ret);
@@ -638,6 +611,8 @@ static void
 main_cfg_show (void)
 {   ENTR();
 
+    LOG("gverbose=%d", gverbose);
+
     dbg_svr_cfg_show(gcfg->dbg_svr);
 
 LEXIT;
@@ -655,29 +630,31 @@ main_cfg (
 
     ERR_NPOS(argc); ERR_NULL(argv);
 
-    if (argc > 1)
+    if (argc < 2)
     {
-        LOG("argc=%d", argc);
-        for (int i = 1; i < argc; i++)
-        {
-            LOG("argv[%d]=\"%s\"", i, argv[i]);
-        }
+        GOERROR;
+    }
+
+    LOG("argc=%d", argc);
+    for (int i = 1; i < argc; i++)
+    {
+        LOG("argv[%d]=\"%s\"", i, argv[i]);
     }
 
     while (1)
     {
-        optchar = getopt_long(argc, argv, "", optlist, &optindex);
+        optchar = getopt_long_only(argc, argv, "", optlist, &optindex);
         if (optchar == -1) { break; }
 
         switch (optchar)
         {
         case GOPTC_HELP:
             main_help(argv[0]);
-            GOEXIT;
+            main_exit(0);
             break;
         case GOPTC_VERBOSE:
             ERR_OPTARG_INVALID();
-            gcfg->verbose = strtol(optarg, NULL, 0);
+            gverbose = strtol(optarg, NULL, 0);
             break;
         default:
             break;
@@ -702,8 +679,8 @@ main_help (
     ERR_NULL(name);
 
     printf("%s options:\r\n", name);
-    printf("--%s\t\t%s\r\n", GOPTL_HELP, GOPTS_HELP);
-    printf("--%s\t%s <%d,%d>\r\n", GOPTL_VERBOSE, GOPTS_VERBOSE, DBG_VERBOSE_MIN, DBG_VERBOSE_MAX);
+    printf("-%c/--%s\t%s\r\n", GOPTC_HELP, GOPTL_HELP, GOPTS_HELP);
+    printf("-%c/--%s\t%s <%d,%d>\r\n", GOPTC_VERBOSE, GOPTL_VERBOSE, GOPTS_VERBOSE, DBG_VERBOSE_MIN, DBG_VERBOSE_MAX);
 
     dbg_svr_help();
 
@@ -725,6 +702,7 @@ main_exit (
         dbg_svr_release(gctl->dbg_svr);
     }
 
+    MEMZ(gcfg, sizeof(GLOBAL_CFG));
     MEMZ(gctl, sizeof(GLOBAL_CTL));
 
 LEXIT;
@@ -752,16 +730,15 @@ main (
 {   ENTR();
     int                                 ret = -1;
 
+    ERR_NPOS(argc); ERR_NULL(argv);
+
     MEMZ(gcfg, sizeof(GLOBAL_CFG));
     MEMZ(gctl, sizeof(GLOBAL_CTL));
-    gcfg->verbose = DBG_VERBOSE_DFT;
-    ERR_NPOS(argc); ERR_NULL(argv);
 
     if (argc < 2)
     {
         main_help(argv[0]);
-        ret = 0;
-        GOEXIT;
+        main_exit(0);
     }
 
     ret = main_cfg(argc, argv);
@@ -1203,7 +1180,7 @@ LERROR;
 
 //         while (1)
 //         {
-//                 optchar = getopt_long(argc, argv, "", optlist, &optindex);
+//                 optchar = getopt_long_only(argc, argv, "", optlist, &optindex);
 //                 if (optchar == -1) { break; }
 
 //                 switch (optchar)
