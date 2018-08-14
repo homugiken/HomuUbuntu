@@ -37,12 +37,12 @@
 #define GOERROR                         goto error
 #define GOEXIT                          goto exit
 /*························································*/
-#define LOCAL_YEAR                      local->tm_year + 1900
-#define LOCAL_MON                       local->tm_mon + 1
-#define LOCAL_DAY                       local->tm_mday
-#define LOCAL_HOUR                      local->tm_hour
-#define LOCAL_MIN                       local->tm_min
-#define LOCAL_SEC                       local->tm_sec
+#define LOCAL_YEAR                      time_local->tm_year + 1900
+#define LOCAL_MON                       time_local->tm_mon + 1
+#define LOCAL_DAY                       time_local->tm_mday
+#define LOCAL_HOUR                      time_local->tm_hour
+#define LOCAL_MIN                       time_local->tm_min
+#define LOCAL_SEC                       time_local->tm_sec
 
 /*____________________________________________________________________________*/
 /* DEBUG */
@@ -155,9 +155,9 @@
 
 typedef struct DBGSTD_CTL {
     va_list                             vargs;
-    time_t                              t_now;
-    struct tm *                         local;
-    char                                time[DBGSTD_TIME_LEN];
+    time_t                              time_now;
+    struct tm *                         time_local;
+    char                                time_str[DBGSTD_TIME_LEN];
     char                                text[DBGSTD_TEXT_LEN];
 } DBGSTD_CTL;
 
@@ -241,7 +241,7 @@ static int dbgmsg_svr_init (DBGMSG_SVR_CTL * const ctl, DBGMSG_SVR_CFG * const c
 #define DBG_SVR_IDX_PATH_NAME_LEN       (DBG_SVR_LOG_PATH_LEN + DBG_SVR_IDX_NAME_LEN)
 #define DBG_SVR_IDX_NAME_DFT            "dbg_svr_idx.txt"
 #define DBG_SVR_IDX_MIN                 0
-#define DBG_SVR_IDX_MAX                 DBG_SVR_LOG_COUNT_MAX
+#define DBG_SVR_IDX_MAX                 9999
 /*························································*/
 typedef struct DBG_SVR_CFG {
     char                                log_path[DBG_SVR_LOG_PATH_LEN];
@@ -255,34 +255,37 @@ typedef struct DBG_SVR_CTL {
     DBG_SVR_CFG *                       cfg;
     pid_t                               pid;
     pid_t                               ppid;
-    time_t                              t_now;
-    struct tm *                         local;
+    time_t                              time_now;
+    struct tm *                         time_local;
     char                                log_name[DBG_SVR_LOG_NAME_LEN];
     char                                log_path_name[DBG_SVR_LOG_PATH_NAME_LEN];
+    DIR *                               log_path_dir;
     FILE *                              log_fp;
     uint32_t                            log_size_current;   /* MB */
     char                                idx_path_name[DBG_SVR_IDX_PATH_NAME_LEN];
     FILE *                              idx_fp;
-    int                                 idx_create;
-    int                                 idx_delete;
+    uint32_t                            idx_create;
+    uint32_t                            idx_delete;
     DBGMSG_SVR_CTL                      _dbgmsg_svr, * dbgmsg_svr;
 } DBG_SVR_CTL;
 /*························································*/
 static int dbg_svr_idx_delete_increase (DBG_SVR_CTL * const ctl, uint32_t num);
-static int dbg_svr_idx_create_increase (DBG_SVR_CTL * const ctl, uint32_t num);
+static int dbg_svr_idx_create_increase (DBG_SVR_CTL * const ctl);
 static int dbg_svr_idx_write (DBG_SVR_CTL * const ctl);
 static int dbg_svr_idx_read (DBG_SVR_CTL * const ctl);
 static void dbg_svr_idx_close (DBG_SVR_CTL * const ctl);
 static int dbg_svr_idx_open (DBG_SVR_CTL * const ctl);
 /*························································*/
 static int dbg_svr_log_shift (DBG_SVR_CTL * const ctl);
-static int dbg_svr_log_write (DBG_SVR_CTL * const ctl, uint8_t * const buf, uint32_t len);
+static void dbg_svr_log_flush (DBG_SVR_CTL * const ctl);
+static int dbg_svr_log_write (DBG_SVR_CTL * const ctl, char * const str);
 static int dbg_svr_log_write_trailer (DBG_SVR_CTL * const ctl);
 static int dbg_svr_log_write_header (DBG_SVR_CTL * const ctl);
+static int dbg_svr_log_name_new (DBG_SVR_CTL * const ctl);
+static int dbg_svr_log_mkdir (DBG_SVR_CTL * const ctl);
 static void dbg_svr_log_close (DBG_SVR_CTL * const ctl);
 static int dbg_svr_log_open (DBG_SVR_CTL * const ctl);
 /*························································*/
-static int dbg_svr_mkdir (DBG_SVR_CFG * const cfg);
 static void dbg_svr_cfg_show (DBG_SVR_CFG * const cfg);
 static int dbg_svr_cfg (DBG_SVR_CFG * const cfg, const int argc, char * const argv[]);
 static void dbg_svr_help (void);
