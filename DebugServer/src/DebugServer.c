@@ -204,119 +204,16 @@ LERROR;
 /* DBG_SVR */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
 static int
-dbg_svr_idx_delete_increase (
-    DBG_SVR_CTL * const                 ctl,
-    uint32_t                            num)
-{   ENTR();
-    int                                 ret = -1;
-
-    ERR_NULL(ctl);
-
-    ret = 0;
-LEXIT;
-    return(ret);
-LERROR;
-    GOEXIT;
-}
-
-static int
-dbg_svr_idx_create_increase (
-    DBG_SVR_CTL * const                 ctl)
-{   ENTR();
-    int                                 ret = -1;
-    ERR_NULL(ctl);
-
-    if (ctl->idx_create >= DBG_SVR_IDX_MAX)
-    {
-        ctl->idx_create = 0;
-    }
-    else
-    {
-        ctl->idx_create++;
-    }
-
-    ret = 0;
-LEXIT;
-    return(ret);
-LERROR;
-    GOEXIT;
-}
-
-static int
-dbg_svr_idx_write (
-    DBG_SVR_CTL * const                 ctl)
-{   ENTR();
-    int                                 ret = -1;
-
-    ERR_NULL(ctl);
-
-    ret = 0;
-LEXIT;
-    return(ret);
-LERROR;
-    GOEXIT;
-}
-
-static int
-dbg_svr_idx_read (
-    DBG_SVR_CTL * const                 ctl)
-{   ENTR();
-    int                                 ret = -1;
-
-    ERR_NULL(ctl);
-
-    ret = 0;
-LEXIT;
-    return(ret);
-LERROR;
-    GOEXIT;
-}
-
-static void
-dbg_svr_idx_close (
-    DBG_SVR_CTL * const                 ctl)
-{   ENTR();
-    ERR_NULL(ctl);
-
-    if (ctl->idx_fp != NULL)
-    {
-        fclose(ctl->idx_fp);
-    }
-
-LEXIT;
-    return;
-LERROR;
-    GOEXIT;
-}
-
-static int
-dbg_svr_idx_open (
-    DBG_SVR_CTL * const                 ctl)
-{   ENTR();
-    int                                 ret = -1;
-
-    ERR_NULL(ctl);
-
-    ret = 0;
-LEXIT;
-    return(ret);
-LERROR;
-    GOEXIT;
-}
-/*····································*/
-static int
 dbg_svr_log_shift (
     DBG_SVR_CTL * const                 ctl)
 {   ENTR();
     int                                 ret = -1;
     ERR_NULL(ctl);
-    ERR_NULL(ctl->cfg);
 
-    if (ctl->log_path_dir == NULL)
+    if (ctl->dir == NULL)
     {
-        ret = dbg_svr_log_mkdir(ctl); ERR_NZERO(ret);
+        ret = dbg_svr_mkdir(ctl); ERR_NZERO(ret);
     }
-
     if (ctl->log_fp != NULL)
     {
         dbg_svr_log_close(ctl);
@@ -360,8 +257,7 @@ dbg_svr_log_write_trailer (
     DBG_SVR_CTL * const                 ctl)
 {   ENTR();
     int                                 ret = -1;
-    ERR_NULL(ctl);
-    ERR_NULL(ctl->log_fp);
+    ERR_NULL(ctl); ERR_NULL(ctl->log_fp);
 
     ctl->time_now = time(NULL);
     ctl->time_local = localtime(&(ctl->time_now));
@@ -369,7 +265,7 @@ dbg_svr_log_write_trailer (
                   ctl->LOCAL_YEAR, ctl->LOCAL_MON, ctl->LOCAL_DAY,
                   ctl->LOCAL_HOUR, ctl->LOCAL_MIN, ctl->LOCAL_SEC); WRN_NPOS(ret);
 
-    dbg_svr_log_flush(ctl);
+    // dbg_svr_log_flush(ctl);
 
     ret = 0;
 LEXIT;
@@ -391,8 +287,8 @@ dbg_svr_log_write_header (
         ret = dbg_svr_log_open(ctl); ERR_NZERO(ret);
     }
 
-    ret = fprintf(ctl->log_fp, "[LOG|PATH=%s|NAME=%s]\r\n", ctl->cfg->log_path, ctl->log_name); WRN_NPOS(ret);
-    ret = fprintf(ctl->log_fp, "[IDX|CREATE=%d|DELETE=%d]\r\n", ctl->idx_create, ctl->idx_delete); WRN_NPOS(ret);
+    ret = fprintf(ctl->log_fp, "[LOG|PATH=%s|NAME=%s]\r\n", ctl->cfg->dir_path, ctl->log_name); WRN_NPOS(ret);
+    ret = fprintf(ctl->log_fp, DBG_SVR_IDX_FMT"\r\n", ctl->idx_create, ctl->idx_delete); WRN_NPOS(ret);
 
     ctl->time_now = time(NULL);
     ctl->time_local = localtime(&(ctl->time_now));
@@ -400,7 +296,7 @@ dbg_svr_log_write_header (
                   ctl->LOCAL_YEAR, ctl->LOCAL_MON, ctl->LOCAL_DAY,
                   ctl->LOCAL_HOUR, ctl->LOCAL_MIN, ctl->LOCAL_SEC); WRN_NPOS(ret);
 
-    dbg_svr_log_flush(ctl);
+    // dbg_svr_log_flush(ctl);
 
     ret = 0;
 LEXIT;
@@ -423,60 +319,6 @@ dbg_svr_log_name_new (
                    ctl->idx_create, ctl->LOCAL_YEAR, ctl->LOCAL_MON, ctl->LOCAL_DAY,
                    ctl->LOCAL_HOUR, ctl->LOCAL_MIN, ctl->LOCAL_SEC); ERR_NPOS(ret);
     INF("log_name=\"%s\"", ctl->log_name);
-
-    ret = 0;
-LEXIT;
-    return(ret);
-LERROR;
-    GOEXIT;
-}
-
-static int
-dbg_svr_log_mkdir (
-    DBG_SVR_CTL * const                 ctl)
-{   ENTR();
-    int                                 ret = -1;
-    int                                 len;
-    char                                strdir[DBG_SVR_LOG_PATH_LEN];
-    ERR_NULL(ctl);
-
-    if (ctl->log_path_dir != NULL)
-    {
-        if (ctl->log_path_dir == opendir(ctl->cfg->log_path))
-        {
-            ret = 0;
-            GOEXIT;
-        }
-        else
-        {
-            ret = closedir(ctl->log_path_dir); WRN_NZERO(ret);
-            ctl->log_path_dir = NULL;
-        }
-    }
-
-    ctl->log_path_dir = opendir(ctl->cfg->log_path);
-    if (ctl->log_path_dir != NULL)
-    {
-        ret = 0;
-        GOEXIT;
-    }
-
-    len = strlen(ctl->cfg->log_path);
-    for (int i = 0; i < len; i++)
-    {
-        if (((ctl->cfg->log_path[i] == '/') && (i > 0)) || (i == (len - 1)))
-        {
-            MEMZ(strdir, DBG_SVR_LOG_PATH_LEN);
-            snprintf(strdir, (i + 2), "%s", ctl->cfg->log_path);
-            ret = mkdir(strdir, DEFFILEMODE);
-            INF("mkdir=\"%s\"", strdir);
-            if ((ret < 0) && (errno != EEXIST))
-            {
-                ERR_NZERO(ret);
-            }
-        }
-    }
-    ctl->log_path_dir = opendir(ctl->cfg->log_path); ERR_NULL(ctl->log_path_dir);
 
     ret = 0;
 LEXIT;
@@ -529,12 +371,12 @@ dbg_svr_log_open (
 {   ENTR();
     int                                 ret = -1;
     ERR_NULL(ctl);
-    ERR_NPOS(strlen(ctl->cfg->log_path));
+    ERR_NPOS(strlen(ctl->cfg->dir_path));
     ERR_NPOS(strlen(ctl->log_name));
 
-    if (ctl->log_path_dir == NULL)
+    if (ctl->dir == NULL)
     {
-        ret = dbg_svr_log_mkdir(ctl); ERR_NZERO(ret);
+        ret = dbg_svr_mkdir(ctl); ERR_NZERO(ret);
     }
     if (ctl->log_fp != NULL)
     {
@@ -545,7 +387,7 @@ dbg_svr_log_open (
         ret = dbg_svr_log_name_new(ctl); ERR_NZERO(ret);
     }
 
-    snprintf(ctl->log_path_name, DBG_SVR_LOG_PATH_NAME_LEN, "%s/%s", ctl->cfg->log_path, ctl->log_name);
+    snprintf(ctl->log_path_name, DBG_SVR_LOG_PATH_NAME_LEN, "%s/%s", ctl->cfg->dir_path, ctl->log_name);
     ctl->log_fp = fopen(ctl->log_path_name, "w+"); ERR_NULL(ctl->log_fp);
     LOG("open=\"%s\"", ctl->log_path_name);
 
@@ -557,7 +399,297 @@ LEXIT;
 LERROR;
     GOEXIT;
 }
-/*····································*/
+/*························································*/
+static int
+dbg_svr_idx_delete_increase (
+    DBG_SVR_CTL * const                 ctl)
+{   ENTR();
+    int                                 ret = -1;
+    ERR_NULL(ctl);
+
+    if (ctl->idx_delete >= DBG_SVR_IDX_MAX)
+    {
+        ctl->idx_delete = 0;
+    }
+    else
+    {
+        ctl->idx_delete++;
+    }
+    INF("idx_delete=%04u", ctl->idx_delete);
+
+    ret = dbg_svr_idx_write(ctl); ERR_NZERO(ret);
+
+    ret = 0;
+LEXIT;
+    return(ret);
+LERROR;
+    GOEXIT;
+}
+
+static int
+dbg_svr_idx_create_increase (
+    DBG_SVR_CTL * const                 ctl)
+{   ENTR();
+    int                                 ret = -1;
+    ERR_NULL(ctl);
+
+    if (ctl->idx_create >= DBG_SVR_IDX_MAX)
+    {
+        ctl->idx_create = 0;
+    }
+    else
+    {
+        ctl->idx_create++;
+    }
+    INF("idx_create=%04u", ctl->idx_create);
+
+    ret = dbg_svr_idx_write(ctl); ERR_NZERO(ret);
+
+    ret = 0;
+LEXIT;
+    return(ret);
+LERROR;
+    GOEXIT;
+}
+
+static void
+dbg_svr_idx_flush (
+    DBG_SVR_CTL *                       const ctl)
+{   ENTR();
+    int                                 ret = -1;
+    ERR_NULL(ctl);
+    ERR_NULL(ctl->idx_fp);
+
+    ret = fflush(ctl->idx_fp); WRN_NZERO(ret);
+
+LEXIT;
+    return;
+LERROR;
+    GOEXIT;
+}
+
+static int
+dbg_svr_idx_write (
+    DBG_SVR_CTL * const                 ctl)
+{   ENTR();
+    int                                 ret = -1;
+    ERR_NULL(ctl);
+    ERR_NULL(ctl->cfg);
+
+    ret = dbg_svr_idx_open_write(ctl); ERR_NZERO(ret);
+
+    ret = fprintf(ctl->idx_fp, DBG_SVR_IDX_FMT"\r\n", ctl->idx_create, ctl->idx_delete); ERR_NPOS(ret);
+    INF("idx_create=%04u idx_delete=%04u", ctl->idx_create, ctl->idx_delete);
+
+    dbg_svr_idx_close(ctl);
+
+    ret = 0;
+LEXIT;
+    return(ret);
+LERROR;
+    GOEXIT;
+}
+
+static int
+dbg_svr_idx_read (
+    DBG_SVR_CTL * const                 ctl)
+{   ENTR();
+    int                                 ret = -1;
+    ERR_NULL(ctl);
+    ERR_NULL(ctl->cfg);
+
+    ret = dbg_svr_idx_open_read(ctl); WRN_NZERO(ret);
+    if (ret != 0)
+    {
+        ctl->idx_create = DBG_SVR_IDX_MIN;
+        ctl->idx_delete = DBG_SVR_IDX_MIN;
+        ret = dbg_svr_idx_write(ctl); ERR_NZERO(ret);
+    }
+    ret = dbg_svr_idx_open_read(ctl); ERR_NZERO(ret);
+
+    ret = fscanf(ctl->idx_fp, DBG_SVR_IDX_FMT, &(ctl->idx_create), &(ctl->idx_delete)); WRN_NPOS(ret);
+    if (ret < 1)
+    {
+        ctl->idx_create = DBG_SVR_IDX_MIN;
+        ctl->idx_delete = DBG_SVR_IDX_MIN;
+        ret = dbg_svr_idx_write(ctl); ERR_NZERO(ret);
+    }
+    else
+    {
+        INF("idx_create=%04u idx_delete=%04u", ctl->idx_create, ctl->idx_delete);
+    }
+
+    dbg_svr_idx_close(ctl);
+
+    ret = 0;
+LEXIT;
+    return(ret);
+LERROR;
+    GOEXIT;
+}
+
+static void
+dbg_svr_idx_close (
+    DBG_SVR_CTL * const                 ctl)
+{   ENTR();
+    ERR_NULL(ctl);
+
+    if (ctl->idx_fp != NULL)
+    {
+        fclose(ctl->idx_fp);
+        ctl->idx_fp = NULL;
+    }
+
+LEXIT;
+    return;
+LERROR;
+    GOEXIT;
+}
+
+static int
+dbg_svr_idx_open_write (
+    DBG_SVR_CTL * const                 ctl)
+{   ENTR();
+    int                                 ret = -1;
+    ERR_NULL(ctl);
+    ERR_NULL(ctl->cfg);
+
+    if (ctl->idx_fp != NULL)
+    {
+        dbg_svr_idx_close(ctl);
+    }
+
+    snprintf(ctl->idx_path_name, DBG_SVR_IDX_PATH_NAME_LEN, "%s/%s", ctl->cfg->dir_path, DBG_SVR_IDX_NAME_DFT);
+    ctl->idx_fp = fopen(ctl->idx_path_name, "w+"); ERR_NULL(ctl->idx_fp);
+    rewind(ctl->idx_fp);
+    INF("open=\"%s\"", ctl->idx_path_name);
+
+    ret = 0;
+LEXIT;
+    return(ret);
+LERROR;
+    GOEXIT;
+}
+
+static int
+dbg_svr_idx_open_read (
+    DBG_SVR_CTL * const                 ctl)
+{   ENTR();
+    int                                 ret = -1;
+    ERR_NULL(ctl);
+    ERR_NULL(ctl->cfg);
+
+    if (ctl->idx_fp != NULL)
+    {
+        dbg_svr_idx_close(ctl);
+    }
+
+    snprintf(ctl->idx_path_name, DBG_SVR_IDX_PATH_NAME_LEN, "%s/%s", ctl->cfg->dir_path, DBG_SVR_IDX_NAME_DFT);
+    ctl->idx_fp = fopen(ctl->idx_path_name, "r"); ERR_NULL(ctl->idx_fp);
+    rewind(ctl->idx_fp);
+    INF("open=\"%s\"", ctl->idx_path_name);
+
+    ret = 0;
+LEXIT;
+    return(ret);
+LERROR;
+    GOEXIT;
+}
+/*························································*/
+static int
+dbg_svr_mkdir (
+    DBG_SVR_CTL * const                 ctl)
+{   ENTR();
+    int                                 ret = -1;
+    int                                 len;
+    char                                str_dir[DBG_SVR_DIR_PATH_LEN];
+    ERR_NULL(ctl);
+    ERR_NULL(ctl->cfg);
+
+    ret = dbg_svr_opendir(ctl); WRN_NZERO(ret);
+    if (ret == 0)
+    {
+        GOEXIT;
+    }
+
+    len = strlen(ctl->cfg->dir_path);
+    for (int i = 0; i < len; i++)
+    {
+        if (((ctl->cfg->dir_path[i] == '/') && (i > 0)) || (i == (len - 1)))
+        {
+            MEMZ(str_dir, DBG_SVR_DIR_PATH_LEN);
+            snprintf(str_dir, (i + 2), "%s", ctl->cfg->dir_path);
+            ret = mkdir(str_dir, DEFFILEMODE);
+            if ((ret < 0) && (errno != EEXIST))
+            {
+                ERR_NZERO(ret);
+            }
+            INF("mkdir=\"%s\"", str_dir);
+        }
+    }
+
+    ret = dbg_svr_opendir(ctl); ERR_NZERO(ret);
+
+    ret = 0;
+LEXIT;
+    return(ret);
+LERROR;
+    GOEXIT;
+}
+
+static void
+dbg_svr_closedir (
+    DBG_SVR_CTL * const                 ctl)
+{   ENTR();
+    int                                 ret = -1;
+    ERR_NULL(ctl);
+
+    if (ctl->dir != NULL)
+    {
+        ret = closedir(ctl->dir); WRN_NZERO(ret);
+        ctl->dir = NULL;
+    }
+
+LEXIT;
+    return;
+LERROR;
+    GOEXIT;
+}
+
+static int
+dbg_svr_opendir (
+    DBG_SVR_CTL * const                 ctl)
+{   ENTR();
+    int                                 ret = -1;
+    int                                 len;
+    ERR_NULL(ctl);
+    ERR_NULL(ctl->cfg);
+
+    len = strlen(ctl->cfg->dir_path); ERR_NPOS(len);
+
+    if (ctl->dir != NULL)
+    {
+        if (ctl->dir != opendir(ctl->cfg->dir_path))
+        {
+            dbg_svr_closedir(ctl);
+        }
+        else
+        {
+            ret = 0;
+            GOEXIT;
+        }
+    }
+
+    ctl->dir = opendir(ctl->cfg->dir_path); ERR_NULL(ctl->dir);
+    INF("opendir=\"%s\"", ctl->cfg->dir_path);
+
+    ret = 0;
+LEXIT;
+    return(ret);
+LERROR;
+    GOEXIT;
+}
+/*························································*/
 static void
 dbg_svr_cfg_show (
     DBG_SVR_CFG * const                 cfg)
@@ -565,7 +697,7 @@ dbg_svr_cfg_show (
 
     ERR_NULL(cfg);
 
-    LOG("log_path=\"%s\"", cfg->log_path);
+    LOG("dir_path=\"%s\"", cfg->dir_path);
     LOG("log_size=%d", cfg->log_size);
     LOG("log_count=%d", cfg->log_count);
     LOG("dbgmsg_svr_enable=%s", STRBOOL(cfg->dbgmsg_svr_enable));
@@ -603,7 +735,7 @@ dbg_svr_cfg (
         {
         case DBG_SVR_OPTC_LOG_PATH:
             ERR_OPTARG_INVALID();
-            snprintf(cfg->log_path, DBG_SVR_LOG_PATH_LEN, "%s", optarg);
+            snprintf(cfg->dir_path, DBG_SVR_DIR_PATH_LEN, "%s", optarg);
             break;
         case DBG_SVR_OPTC_LOG_SIZE:
             ERR_OPTARG_INVALID();
@@ -621,9 +753,9 @@ dbg_svr_cfg (
         }
     }
 
-    if (strnlen(cfg->log_path, DBG_SVR_LOG_PATH_LEN) < 1)
+    if (strnlen(cfg->dir_path, DBG_SVR_DIR_PATH_LEN) < 1)
     {
-        snprintf(cfg->log_path, DBG_SVR_LOG_PATH_LEN, "%s", DBG_SVR_LOG_PATH_DFT);
+        snprintf(cfg->dir_path, DBG_SVR_DIR_PATH_LEN, "%s", DBG_SVR_LOG_PATH_DFT);
     }
 
     if (cfg->log_size < 1)
@@ -675,11 +807,7 @@ dbg_svr_release (
 
     dbg_svr_log_close(ctl);
     dbg_svr_idx_close(ctl);
-
-    if (ctl->log_path_dir != NULL)
-    {
-        closedir(ctl->log_path_dir);
-    }
+    dbg_svr_closedir(ctl);
 
     if (ctl->dbgmsg_svr != NULL)
     {
@@ -713,8 +841,7 @@ dbg_svr_init (
     ctl->ppid = getppid();
     LOG("pid=%d ppid=%d", ctl->pid, ctl->ppid);
 
-    ret = dbg_svr_log_mkdir(ctl); ERR_NZERO(ret);
-    ret = dbg_svr_idx_open(ctl); ERR_NZERO(ret);
+    ret = dbg_svr_mkdir(ctl); ERR_NZERO(ret);
     ret = dbg_svr_idx_read(ctl); ERR_NZERO(ret);
     ret = dbg_svr_log_shift(ctl); ERR_NZERO(ret);
 
@@ -1129,7 +1256,7 @@ LERROR;
 //         snprintf(gctl->log_name, DBG_SERVER_LOG_NAME_LEN, "%04d-%04d%02d%02d-%02d%02d%02d-dbg.txt",
 //                  gctl->idx_create, (gctl->local->tm_year + 1900), (gctl->local->tm_mon + 1), gctl->local->tm_mday,
 //                  gctl->local->tm_hour, gctl->local->tm_min, gctl->local->tm_sec);
-//         snprintf(gctl->log_path_name, DBG_SERVER_LOG_PATH_NAME_LEN, "%s/%s", gcfg->log_path, gctl->log_name);
+//         snprintf(gctl->log_path_name, DBG_SERVER_LOG_PATH_NAME_LEN, "%s/%s", gcfg->dir_path, gctl->log_name);
 //         INF("log_path_name=\"%s\"", gctl->log_path_name);
 
 //         if (gctl->log_fp != NULL)
@@ -1157,7 +1284,7 @@ LERROR;
 //         len = strnlen(gctl->idx_path_name, DBG_SERVER_IDX_PATH_NAME_LEN);
 //         if (len < 1)
 //         {
-//                 snprintf(gctl->idx_path_name, DBG_SERVER_IDX_PATH_NAME_LEN, "%s/%s", gcfg->log_path, DBG_SERVER_IDX_NAME_DFT);
+//                 snprintf(gctl->idx_path_name, DBG_SERVER_IDX_PATH_NAME_LEN, "%s/%s", gcfg->dir_path, DBG_SERVER_IDX_NAME_DFT);
 //         }
 
 //         gctl->idx_fp = fopen(gctl->idx_path_name, "w+"); ERR_NULL(gctl->idx_fp);
@@ -1182,7 +1309,7 @@ LERROR;
 //         len = strnlen(gctl->idx_path_name, DBG_SERVER_IDX_PATH_NAME_LEN);
 //         if (len < 1)
 //         {
-//                 snprintf(gctl->idx_path_name, DBG_SERVER_IDX_PATH_NAME_LEN, "%s/%s", gcfg->log_path, DBG_SERVER_IDX_NAME_DFT);
+//                 snprintf(gctl->idx_path_name, DBG_SERVER_IDX_PATH_NAME_LEN, "%s/%s", gcfg->dir_path, DBG_SERVER_IDX_NAME_DFT);
 //         }
 
 //         gctl->idx_fp = fopen(gctl->idx_path_name, "a+"); ERR_NULL(gctl->idx_fp);
@@ -1214,19 +1341,19 @@ LERROR;
 //         DIR *                           dir;
 //         char                            strdir[DBG_SERVER_LOG_PATH_LEN] = {'0'};
 
-//         dir = opendir(gcfg->log_path);
+//         dir = opendir(gcfg->dir_path);
 //         if (dir != NULL)
 //         {
 //                 ret = closedir(dir); ERR_NZERO(ret);
 //                 goto exit;
 //         }
 
-//         len = strlen(gcfg->log_path);
+//         len = strlen(gcfg->dir_path);
 //         for (i = 0; i < len; i++)
 //         {
-//                 if (((gcfg->log_path[i] == '/') && (i > 0)) || (i == (len - 1)))
+//                 if (((gcfg->dir_path[i] == '/') && (i > 0)) || (i == (len - 1)))
 //                 {
-//                         snprintf(strdir, (i + 2), "%s", gcfg->log_path);
+//                         snprintf(strdir, (i + 2), "%s", gcfg->dir_path);
 //                         INF("mkdir=\"%s\"", strdir);
 //                         ret = mkdir(strdir, DEFFILEMODE);
 //                         if ((ret < 0) && (errno != EEXIST))
@@ -1236,7 +1363,7 @@ LERROR;
 //                 }
 //         }
 
-//         dir = opendir(gcfg->log_path);
+//         dir = opendir(gcfg->dir_path);
 //         if (dir != NULL)
 //         {
 //                 ret = closedir(dir); ERR_NZERO(ret);
@@ -1337,8 +1464,8 @@ LERROR;
 //                         break;
 //                 case OPTC_LOG_PATH:
 //                         ERR_OPTARG_INVALID();
-//                         snprintf(gcfg->log_path, DBG_SERVER_LOG_PATH_LEN, "%s", optarg);
-//                         INF("log_path=\"%s\"", gcfg->log_path);
+//                         snprintf(gcfg->dir_path, DBG_SERVER_LOG_PATH_LEN, "%s", optarg);
+//                         INF("dir_path=\"%s\"", gcfg->dir_path);
 //                         break;
 //                 case OPTC_LOG_SIZE:
 //                         ERR_OPTARG_INVALID();
@@ -1383,11 +1510,11 @@ LERROR;
 
 //         LOG("verbose=%d", gcfg->verbose);
 
-//         if (strnlen(gcfg->log_path, DBG_SERVER_LOG_PATH_LEN) < 1)
-//         {       /* default log_path */
-//                 snprintf(gcfg->log_path, DBG_SERVER_LOG_PATH_LEN, "%s", DBG_SERVER_LOG_PATH_DFT);
+//         if (strnlen(gcfg->dir_path, DBG_SERVER_LOG_PATH_LEN) < 1)
+//         {       /* default dir_path */
+//                 snprintf(gcfg->dir_path, DBG_SERVER_LOG_PATH_LEN, "%s", DBG_SERVER_LOG_PATH_DFT);
 //         }
-//         LOG("log_path=%s", gcfg->log_path);
+//         LOG("dir_path=%s", gcfg->dir_path);
 
 //         if (gcfg->log_size < 1)
 //         {       /* default log_size */
