@@ -1,7 +1,7 @@
 #!/bin/bash
 
 TARGET="DebugServer"
-OPT="--verbose=2 --count=100 --msg"
+OPT="-v=3 -p=/root/.dbg -m"
 JOB="./$TARGET $OPT"
 
 if [ -x $TARGET ]; then

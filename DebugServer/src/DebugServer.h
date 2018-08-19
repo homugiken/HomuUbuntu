@@ -56,14 +56,13 @@
 #define DBG_ENABLE_INF                  1   /* INF */
 #define DBG_ENABLE_TAG                  1   /* TAG */
 /*························································*/
-#define DBG_VERBOSE_MIN                 0
 #define DBG_VERBOSE_ERR                 1   /* ERR */
 #define DBG_VERBOSE_WRN                 2   /* WRN */
 #define DBG_VERBOSE_LOG                 3   /* LOG */
 #define DBG_VERBOSE_INF                 4   /* INF */
 #define DBG_VERBOSE_TAG                 5   /* TAG */
-#define DBG_VERBOSE_MAX                 5
-#define DBG_SVR_VERBOSE_DFT             DBG_VERBOSE_LOG
+#define DBG_VERBOSE_MIN                 DBG_VERBOSE_ERR
+#define DBG_VERBOSE_MAX                 DBG_VERBOSE_TAG
 /*························································*/
 #if DBG_ENABLE_DBGSTD && DBG_ENABLE_ALL
 #define DBGSTD(fmt,...)                 dbgstd_printf("#%04d|%s:"fmt,__LINE__,__FUNCTION__,##__VA_ARGS__)
@@ -72,7 +71,7 @@
 #endif
 /*························································*/
 #if DBG_ENABLE_DBGMSG && DBG_ENABLE_ALL
-#define DBGMSG(fmt,...)                 dbgmsg_printf("#%04d|%s:"fmt,__LINE__,__FUNCTION__,##__VA_ARGS__)
+#define DBGMSG(fmt,...)                 dbgmsg_printf(gctl->dbgmsg_clnt->dbgmsg,"#%04d|%s:"fmt,__LINE__,__FUNCTION__,##__VA_ARGS__)
 #else
 #define DBGMSG(fmt,...)
 #endif
@@ -150,58 +149,93 @@
 /*____________________________________________________________________________*/
 /* DBGSTD */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
+#define DBGSTD_TIME_STR_LEN             32
 #define DBGSTD_TEXT_LEN                 2048
-#define DBGSTD_TIME_LEN                 32
-
+/*························································*/
 typedef struct DBGSTD_CTL {
     va_list                             vargs;
     time_t                              time_now;
     struct tm *                         time_local;
-    char                                time_str[DBGSTD_TIME_LEN];
+    char                                time_str[DBGSTD_TIME_STR_LEN];
     char                                text[DBGSTD_TEXT_LEN];
 } DBGSTD_CTL;
+/*························································*/
+static void dbgstd_printf (const char * fmt, ...);
+
+/*____________________________________________________________________________*/
+/* DBGMSG */
+/*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
+#define DBGMSG_OPTL_KEY                 "key"
+#define DBGMSG_OPTC_KEY                 'k'
+#define DBGMSG_OPTS_KEY                 "dbgmsg msgkey"
+#define DBGMSG_OPTL_KEY_PATH            "keypath"
+#define DBGMSG_OPTS_KEY_PATH            "dbgmsg msgkey path (used to generate msgkey when the msgkey was not assigned)"
+#define DBGMSG_OPTL_KEY_ID              "keyid"
+#define DBGMSG_OPTS_KEY_ID              "dbgmsg msgkey id (used to generate msgkey when the msgkey was not assigned)"
+/*························································*/
+#define DBGMSG_TYPE_DEBUG               0x01
+/*························································*/
+#define DBGMSG_SRC_NAME_LEN             32
+#define DBGMSG_TEXT_LEN                 2048
+/*························································*/
+#define DBGMSG_KEY_PATH_LEN             1024
+#define DBGMSG_KEY_PATH_DFT             "."
+/*························································*/
+#define DBGMSG_KEY_ID_MIN               0x01
+#define DBGMSG_KEY_ID_MAX               0xFF
+#define DBGMSG_KEY_ID_DFT               DBGMSG_KEY_ID_MIN
+/*························································*/
+#define DBGMSG_MSG_FMT                  "%04d%02d%02d-%02d%02d%02d|P%04d|%s|%s\r\n"
+/*························································*/
+typedef struct DBGMSG_MSG {
+    long                                type;
+    time_t                              src_time;
+    pid_t                               src_pid;
+    char                                src_name[DBGMSG_SRC_NAME_LEN];
+    char                                text[DBGMSG_TEXT_LEN];
+} DBGMSG_MSG;
+/*························································*/
+typedef struct DBGMSG_CFG {
+    key_t                               key;
+    char                                key_path[DBGMSG_KEY_PATH_LEN];
+    uint32_t                            key_id;
+    char                                src_name[DBGMSG_SRC_NAME_LEN];
+} DBGMSG_CFG;
+/*························································*/
+typedef struct DBGMSG_CTL {
+    DBGMSG_CFG *                        cfg;
+    pid_t                               pid;
+    int                                 qid;
+    bool                                ready;
+    va_list                             vargs;
+} DBGMSG_CTL;
+/*························································*/
+static void dbgmsg_printf (const char * fmt, ...);
+static void dbgmsg_cfg_show (DBGMSG_CFG * const cfg);
+static int dbgmsg_cfg (DBGMSG_CFG * const cfg, const int argc, char * const argv[]);
+static void dbgmsg_help (void);
+static void dbgmsg_release (DBGMSG_CTL * const ctl);
+static int dbgmsg_init (DBGMSG_CTL * const ctl, DBGMSG_CFG * const cfg);
 
 /*____________________________________________________________________________*/
 /* DBGMSG_SVR */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
-#define DBGMSG_SVR_OPTL_KEY             "key"
-#define DBGMSG_SVR_OPTC_KEY             'k'
-#define DBGMSG_SVR_OPTS_KEY             "dbgmsg msgkey"
-#define DBGMSG_SVR_OPTL_KEY_PATH        "keypath"
-#define DBGMSG_SVR_OPTS_KEY_PATH        "dbgmsg msgkey path (used to generate msgkey when the msgkey was not assigned)"
-#define DBGMSG_SVR_OPTL_KEY_ID          "keyid"
-#define DBGMSG_SVR_OPTS_KEY_ID          "dbgmsg msgkey id (used to generate msgkey when the msgkey was not assigned)"
 /*························································*/
-#define DBGMSG_SVR_MSG_NAME_LEN         32
-#define DBGMSG_SVR_MSG_TEXT_LEN         2048
-/*························································*/
-#define DBGMSG_SVR_KEY_PATH_LEN         1024
-#define DBGMSG_SVR_KEY_PATH_DFT         "."
-#define DBGMSG_SVR_KEY_ID_DFT           0x01
-/*························································*/
-typedef struct DBGMSG_SVR_MSG {
-    long                                src_type;
-    time_t                              src_time;
-    pid_t                               src_pid;
-    char *                              src_name[DBGMSG_SVR_MSG_NAME_LEN];
-    char *                              src_text[DBGMSG_SVR_MSG_TEXT_LEN];
-} DBGMSG_SVR_MSG;
+#define DBGMSG_SVR_MSG_BUF_SIZE         10
+#define DBGMSG_SVR_MSG_COUNT_MAX        (DBGMSG_SVR_MSG_BUF_SIZE - 1)
 /*························································*/
 typedef struct DBGMSG_SVR_CFG {
-    key_t                               key;
-    char                                key_path[DBGMSG_SVR_KEY_PATH_LEN];
-    int                                 key_id;
+    DBGMSG_CFG                          _dbgmsg, * dbgmsg;
 } DBGMSG_SVR_CFG;
 /*························································*/
 typedef struct DBGMSG_SVR_CTL {
-    // DBGMSG_SVR_CFG                      CFG;
-    // DBGMSG_SVR_CFG *                    cfg;
-    // key_t                               key;
+    DBGMSG_SVR_CFG *                    cfg;
     int                                 qid;
-    FILE *                              log_fp;
     bool                                ready;
-    // time_t                              tnow;
-    // struct tm *                         local;
+    DBGMSG_MSG                          msg_buf[DBGMSG_SVR_MSG_BUF_SIZE];
+    uint32_t                            msg_count;
+    time_t                              time_msg;
+    struct tm *                         time_local;
 } DBGMSG_SVR_CTL;
 /*························································*/
 static void dbgmsg_svr_cfg_show (DBGMSG_SVR_CFG * const cfg);
@@ -213,6 +247,10 @@ static int dbgmsg_svr_init (DBGMSG_SVR_CTL * const ctl, DBGMSG_SVR_CFG * const c
 /*____________________________________________________________________________*/
 /* DBG_SVR */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
+#define DBG_SVR_VERBOSE_MIN             DBG_VERBOSE_ERR
+#define DBG_SVR_VERBOSE_MAX             DBG_VERBOSE_TAG
+#define DBG_SVR_VERBOSE_DFT             DBG_VERBOSE_MAX
+/*························································*/
 #define DBG_SVR_OPTL_LOG_PATH           "path"
 #define DBG_SVR_OPTC_LOG_PATH           'p'
 #define DBG_SVR_OPTS_LOG_PATH           "log file storage path"
@@ -227,27 +265,32 @@ static int dbgmsg_svr_init (DBGMSG_SVR_CTL * const ctl, DBGMSG_SVR_CFG * const c
 #define DBG_SVR_OPTS_DBGMSG_SVR         "dbgmsg server enable"
 /*························································*/
 #define DBG_SVR_DIR_PATH_LEN            1024
+#define DBG_SVR_DIR_PATH_DFT            "./dbg"
+/*························································*/
 #define DBG_SVR_LOG_NAME_LEN            1024
+#define DBG_SVR_LOG_NAME_FMT            "dbg-%04d-%04d%02d%02d-%02d%02d%02d.txt"
 #define DBG_SVR_LOG_PATH_NAME_LEN       (DBG_SVR_DIR_PATH_LEN + DBG_SVR_LOG_NAME_LEN)
-#define DBG_SVR_LOG_PATH_DFT            "./dbg"
+/*························································*/
 #define DBG_SVR_LOG_SIZE_MIN            1
 #define DBG_SVR_LOG_SIZE_MAX            10
 #define DBG_SVR_LOG_SIZE_DFT            DBG_SVR_LOG_SIZE_MIN
+/*························································*/
 #define DBG_SVR_LOG_COUNT_MIN           10
 #define DBG_SVR_LOG_COUNT_MAX           100
 #define DBG_SVR_LOG_COUNT_DFT           DBG_SVR_LOG_COUNT_MIN
 /*························································*/
 #define DBG_SVR_IDX_NAME_LEN            32
+#define DBG_SVR_IDX_NAME_FMT            "dbg-idx.txt"
 #define DBG_SVR_IDX_PATH_NAME_LEN       (DBG_SVR_DIR_PATH_LEN + DBG_SVR_IDX_NAME_LEN)
-#define DBG_SVR_IDX_NAME_DFT            "dbg-idx.txt"
+/*························································*/
 #define DBG_SVR_IDX_FMT                 "[IDX|CREATE=%04u|DELETE=%04u]"
 #define DBG_SVR_IDX_MIN                 0
 #define DBG_SVR_IDX_MAX                 9999
 /*························································*/
 typedef struct DBG_SVR_CFG {
     char                                dir_path[DBG_SVR_DIR_PATH_LEN];
-    int                                 log_size;           /* MB */
-    int                                 log_count;
+    uint32_t                            log_size;           /* MB */
+    uint32_t                            log_count;
     bool                                dbgmsg_svr_enable;
     DBGMSG_SVR_CFG                      _dbgmsg_svr, * dbgmsg_svr;
 } DBG_SVR_CFG;
@@ -256,6 +299,7 @@ typedef struct DBG_SVR_CTL {
     DBG_SVR_CFG *                       cfg;
     pid_t                               pid;
     pid_t                               ppid;
+    bool                                ready;
     time_t                              time_now;
     struct tm *                         time_local;
     char                                log_name[DBG_SVR_LOG_NAME_LEN];
@@ -270,9 +314,12 @@ typedef struct DBG_SVR_CTL {
     DBGMSG_SVR_CTL                      _dbgmsg_svr, * dbgmsg_svr;
 } DBG_SVR_CTL;
 /*························································*/
+static int dbg_svr_loop_job (DBG_SVR_CTL * const ctl);
+static int dbg_svr_rcv (DBG_SVR_CTL * const ctl);
+/*························································*/
 static int dbg_svr_log_shift (DBG_SVR_CTL * const ctl);
 static void dbg_svr_log_flush (DBG_SVR_CTL * const ctl);
-static int dbg_svr_log_write (DBG_SVR_CTL * const ctl, char * const str);
+static int dbg_svr_log_fprintf (DBG_SVR_CTL * const ctl);
 static int dbg_svr_log_write_trailer (DBG_SVR_CTL * const ctl);
 static int dbg_svr_log_write_header (DBG_SVR_CTL * const ctl);
 static int dbg_svr_log_name_new (DBG_SVR_CTL * const ctl);
@@ -297,6 +344,54 @@ static int dbg_svr_cfg (DBG_SVR_CFG * const cfg, const int argc, char * const ar
 static void dbg_svr_help (void);
 static void dbg_svr_release (DBG_SVR_CTL * const ctl);
 static int dbg_svr_init (DBG_SVR_CTL * const ctl, DBG_SVR_CFG * const cfg);
+
+/*____________________________________________________________________________*/
+/* DBGMSG_CLNT */
+/*------------------------------------*/
+#define DBGMSG_SRC_NAME_LEN             32
+
+
+
+
+/*························································*/
+typedef struct DBGMSG_CLNT_CFG {
+    key_t                               key;
+    char                                key_path[DBGMSG_SVR_KEY_PATH_LEN];
+    uint32_t                            key_id;
+    char                                src_name[DBGMSG_SRC_NAME_LEN]
+} DBGMSG_CLNT_CFG;
+/*························································*/
+typedef struct DBGMSG_CLNT_CTL {
+    DBGMSG_CLNT_CFG *                   cfg;
+    pid_t                               pid;
+    bool                                ready;
+    DBGMSG_MSG                          _msg, * msg;
+    time_t                              time_now;
+} DBGMSG_CLNT_CTL;
+
+/*____________________________________________________________________________*/
+/* DBG_CLNT */
+/*------------------------------------*/
+
+
+
+
+
+typedef struct DBG_CLNT_CFG {
+
+} DBG_CLNT_CFG;
+
+typedef struct DBG_CLNT_CTL {
+    DBG_CLNT_CFG *                      cfg;
+    pid_t                               pid;
+    pid_t                               ppid;
+    bool                                ready;
+
+
+
+} DBG_CLNT_CTL;
+
+
 
 /*____________________________________________________________________________*/
 /* MAIN */

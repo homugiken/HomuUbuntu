@@ -9,7 +9,6 @@
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
 typedef struct GLOBAL_CFG {
     DBG_SVR_CFG                         _dbg_svr, * dbg_svr;
-    uint8_t                             verbose;
 } GLOBAL_CFG;
 
 typedef struct GLOBAL_CTL {
@@ -18,11 +17,12 @@ typedef struct GLOBAL_CTL {
 
 static GLOBAL_CFG                       _gcfg, * const gcfg = &_gcfg;
 static GLOBAL_CTL                       _gctl, * const gctl = &_gctl;
-static uint8_t                          gverbose = DBG_SVR_VERBOSE_DFT;
+static uint32_t                         gverbose = DBG_SVR_VERBOSE_DFT;
 
 /*____________________________________________________________________________*/
 /* OPTION */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
+extern int                              optind;
 extern char *                           optarg;
 static struct option                    optlist[] =
 {
@@ -46,12 +46,6 @@ static struct option                    optlist[] =
 DOWHILE(if(OPTARG_INVALID(optarg)){ERR("option --%s need argument", optlist[optindex].name); goto error;})
 
 /*____________________________________________________________________________*/
-/* DECLARE */
-/*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
-static void dbgstd_printf (const char * fmt, ...);
-static void dbgmsg_printf (const char * fmt, ...);
-
-/*____________________________________________________________________________*/
 /* DBGSTD */
 /*------------------------------------*/
 static void
@@ -61,24 +55,15 @@ dbgstd_printf (
 {
     static DBGSTD_CTL                   _ctl, * const ctl = &_ctl;
 
-#if 0
-    MEMZ(ctl->text, DBGSTD_TEXT_LEN);
-#else
-    ctl->text[0] = '\0';
-#endif
 
+    ctl->time_str[0] = '\0';
     ctl->time_now = time(NULL);
     ctl->time_local = localtime(&(ctl->time_now));
-#if 0
-    snprintf(ctl->time_str, DBGSTD_TIME_LEN, "%04d/%02d/%02d-%02d:%02d:%02d",
+    snprintf(ctl->time_str, DBGSTD_TIME_STR_LEN, "%04d%02d%02d-%02d%02d%02d",
              (ctl->LOCAL_YEAR), (ctl->LOCAL_MON), ctl->LOCAL_DAY,
              ctl->LOCAL_HOUR, ctl->LOCAL_MIN, ctl->LOCAL_SEC);
-#else
-    snprintf(ctl->time_str, DBGSTD_TIME_LEN, "%04d%02d%02d-%02d%02d%02d",
-             (ctl->LOCAL_YEAR), (ctl->LOCAL_MON), ctl->LOCAL_DAY,
-             ctl->LOCAL_HOUR, ctl->LOCAL_MIN, ctl->LOCAL_SEC);
-#endif
 
+    ctl->text[0] = '\0';
     va_start(ctl->vargs, fmt);
     vsnprintf(ctl->text, DBGSTD_TEXT_LEN, fmt, ctl->vargs);
     va_end(ctl->vargs);
@@ -89,9 +74,133 @@ dbgstd_printf (
 }
 
 /*____________________________________________________________________________*/
+/* DBGMSG */
+/*------------------------------------*/
+static void
+dbgmsg_printf (
+    DBGMSG_CTL * const                  ctl,
+    const char *                        fmt,
+    ...)
+{
+    int                                 ret = -1;
+    DBGMSG_MSG                          _msg, * const msg = &_msg;
+
+    if ((ctl == NULL) || (ctl->qid < 0) || (ctl->ready != true))
+    {
+        return;
+    }
+
+    msg->type = DBGMSG_TYPE_DEBUG;
+    msg->src_time = time(NULL);
+    msg->src_pid = ctl->pid;
+
+    msg->src_name[0] = '\0';
+    snprintf(msg->src_name, DBGMSG_SRC_NAME_LEN, "%s", ctl->src_name);
+
+    msg->text[0] = '\0';
+    va_start(ctl->vargs, fmt);
+    vsnprintf(msg->text, DBGSTD_TEXT_LEN, fmt, ctl->vargs);
+    va_end(ctl->vargs);
+
+    msgsnd(ctl->qid, msg, (sizeof(time_t) + sizeof(pid_t) + DBGMSG_SRC_NAME_LEN + strlen(msg->text) + 1), IPC_NOWAIT);
+}
+
+
+static void dbgmsg_cfg_show (DBGMSG_CFG * const cfg);
+static int dbgmsg_cfg (DBGMSG_CFG * const cfg, const int argc, char * const argv[]);
+static void dbgmsg_help (void);
+static void dbgmsg_release (DBGMSG_CTL * const ctl);
+static int dbgmsg_init (DBGMSG_CTL * const ctl, DBGMSG_CFG * const cfg);
+
+
+
+
+
+
+/*____________________________________________________________________________*/
 /* DBGMSG_SVR */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
+static int
+dbgmsg_svr_fprintf (
+    DBGMSG_SVR_CTL * const              ctl,
+    FILE * const                        fp)
+{   ENTR();
+    int                                 ret = -1;
+    DBGMSG_MSG *                    msg = NULL;
 
+    ERR_NULL(ctl); ERR_NULL(fp);
+    ERR_FALSE(ctl->ready);
+
+    if (ctl->msg_count < 1)
+    {
+        ret = 0;
+        GOEXIT;
+    }
+
+    for (uint32_t i = 0; i < ctl->msg_count; i++)
+    {
+        msg = &(ctl->msg_buf[i]);
+        ctl->time_msg = msg->src_time;
+        ctl->time_local = localtime(&(ctl->time_msg));
+
+        ret = fprintf(fp, DBGMSG_SVR_MSG_FMT,
+                      ctl->LOCAL_YEAR, ctl->LOCAL_MON, ctl->LOCAL_DAY,
+                      ctl->LOCAL_HOUR, ctl->LOCAL_MIN, ctl->LOCAL_SEC,
+                      msg->src_pid, msg->src_name, msg->text); WRN_NPOS(ret);
+
+        ret = fprintf(stdout, DBGMSG_SVR_MSG_FMT,
+                      ctl->LOCAL_YEAR, ctl->LOCAL_MON, ctl->LOCAL_DAY,
+                      ctl->LOCAL_HOUR, ctl->LOCAL_MIN, ctl->LOCAL_SEC,
+                      msg->src_pid, msg->src_name, msg->text); WRN_NPOS(ret);
+    }
+
+    ret = 0;
+LEXIT;
+    return(ret);
+LERROR;
+    GOEXIT;
+}
+
+static int
+dbgmsg_svr_rcv (
+    DBGMSG_SVR_CTL * const              ctl)
+{   ENTR();
+    int                                 ret = -1;
+
+    ERR_NULL(ctl);
+    ERR_FALSE(ctl->ready);
+    ERR_NEG(ctl->qid);
+
+    if (ctl->msg_count > 0)
+    {
+        MEMZ(ctl->msg_buf, (ctl->msg_count * sizeof(DBGMSG_SVR_MSG)));
+    }
+    ctl->msg_count = 0;
+
+    for (int i = 0; i < DBGMSG_SVR_MSG_BUF_SIZE; i++)
+    {
+        ret = msgrcv(ctl->qid,
+                     &(ctl->msg_buf[i]),
+                     (sizeof(DBGMSG_SVR_MSG) - sizeof(long)),
+                     0,
+                     (IPC_NOWAIT | MSG_NOERROR)); WRN_NPOS(ret);
+        if (ret <= 0)
+        {
+            break;
+        }
+        ctl->msg_count++;
+    }
+    if (ctl->msg_count > 0)
+    {
+        INF("msg_count=%u", ctl->msg_count);
+    }
+
+    ret = 0;
+LEXIT;
+    return(ret);
+LERROR;
+    GOEXIT;
+}
 
 static void
 dbgmsg_svr_cfg_show (
@@ -100,6 +209,9 @@ dbgmsg_svr_cfg_show (
 
     ERR_NULL(cfg);
 
+    LOG("key=0x%08X", cfg->key);
+    LOG("key_path=\"%s\"", cfg->key_path);
+    LOG("key_id=0x%02X", cfg->key_id);
 
 LEXIT;
     return;
@@ -121,6 +233,7 @@ dbgmsg_svr_cfg (
     ERR_NULL(cfg); ERR_NPOS(argc); ERR_NULL(argv);
 
     MEMZ(cfg, sizeof(DBGMSG_SVR_CFG));
+    optind = 0;
     while (1)
     {
         optchar = getopt_long_only(argc, argv, "", optlist, &optindex);
@@ -130,19 +243,21 @@ dbgmsg_svr_cfg (
         {
         case DBGMSG_SVR_OPTC_KEY:
             ERR_OPTARG_INVALID();
-            cfg->key = strtol(optarg, NULL, 0);
+            cfg->key = strtoul(optarg, NULL, 0);
+            INF("key=0x%08X", cfg->key);
             break;
         case 0:
             if (strncmp(optlist[optindex].name, DBGMSG_SVR_OPTL_KEY_PATH, strlen(DBGMSG_SVR_OPTL_KEY_PATH)) == 0)
             {
                 ERR_OPTARG_INVALID();
                 snprintf(cfg->key_path, DBGMSG_SVR_KEY_PATH_LEN, "%s", optarg);
+                INF("key_path=\"%s\"", cfg->key_path);
             }
             else if (strncmp(optlist[optindex].name, DBGMSG_SVR_OPTL_KEY_ID, strlen(DBGMSG_SVR_OPTL_KEY_ID)) == 0)
             {
                 ERR_OPTARG_INVALID();
-                cfg->key_id = strtol(optarg, NULL, 0);
-                ERR_RANGE(cfg->key_id, 0x01, 0xFF);
+                cfg->key_id = strtoul(optarg, NULL, 0);
+                INF("key_id=0x%02X", cfg->key_id);
             }
             break;
         default:
@@ -150,6 +265,24 @@ dbgmsg_svr_cfg (
         }
     }
 
+    if (strlen(cfg->key_path) < 2)
+    {
+        snprintf(cfg->key_path, DBGMSG_SVR_KEY_PATH_LEN, "%s", DBGMSG_SVR_KEY_PATH_DFT);
+        INF("key_path=\"%s\"", cfg->key_path);
+    }
+
+    if ((cfg->key_id < DBGMSG_SVR_KEY_ID_MIN) || (cfg->key_id > DBGMSG_SVR_KEY_ID_MAX))
+    {
+        cfg->key_id = DBGMSG_SVR_KEY_ID_DFT;
+        INF("key_id=0x%02X", cfg->key_id);
+    }
+    ERR_RANGE(cfg->key_id, DBGMSG_SVR_KEY_ID_MIN, DBGMSG_SVR_KEY_ID_MAX);
+
+    if (cfg->key < 1)
+    {
+        cfg->key = ftok(cfg->key_path, cfg->key_id); ERR_NEG(cfg->key);
+        INF("key=0x%X", cfg->key);
+    }
 
     ret = 0;
 LEXIT;
@@ -174,8 +307,15 @@ static void
 dbgmsg_svr_release (
     DBGMSG_SVR_CTL * const              ctl)
 {   ENTR();
+    int                                 ret = -1;
 
     ERR_NULL(ctl);
+
+    if (ctl->qid >=0)
+    {
+        ret = msgctl(ctl->qid, IPC_RMID, NULL); WRN_NZERO(ret);
+        ctl->ready = false;
+    }
 
 LEXIT;
     return;
@@ -192,6 +332,24 @@ dbgmsg_svr_init (
 
     ERR_NULL(ctl); ERR_NULL(cfg);
 
+    if (ctl->cfg != NULL)
+    {
+        dbgmsg_svr_release(ctl);
+    }
+    ctl->cfg = cfg;
+
+    ERR_NPOS(ctl->cfg->key);
+    ctl->qid = msgget(ctl->cfg->key, (IPC_CREAT | IPC_EXCL));
+    if ((ctl->qid < 0) && (errno == EEXIST))
+    {
+        ctl->qid = msgget(ctl->cfg->key, 0); WRN_NEG(ctl->qid);
+    }
+    ERR_NEG(ctl->qid);
+    LOG("qid=%d", ctl->qid);
+
+    ctl->ready = true;
+    LOG("ready=%s", STRBOOL(ctl->ready));
+
     ret = 0;
 LEXIT;
     return(ret);
@@ -203,6 +361,51 @@ LERROR;
 /*____________________________________________________________________________*/
 /* DBG_SVR */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
+static int
+dbg_svr_loop_job (
+    DBG_SVR_CTL * const                 ctl)
+{   ENTR();
+    int                                 ret = -1;
+    ERR_NULL(ctl);
+
+    ret = dbg_svr_rcv(ctl); WRN_NZERO(ret);
+
+    ret = dbg_svr_log_fprintf(ctl); WRN_NZERO(ret);
+
+    ret = 0;
+LEXIT;
+    return(ret);
+LERROR;
+    GOEXIT;
+}
+
+static int
+dbg_svr_rcv (
+    DBG_SVR_CTL * const                 ctl)
+{   ENTR();
+    int                                 ret = -1;
+    ERR_NULL(ctl);
+
+    if (ctl->cfg->dbgmsg_svr_enable == true)
+    {
+        WRN_NULL(ctl->dbgmsg_svr);
+        if (ctl->dbgmsg_svr != NULL)
+        {
+            WRN_FALSE(ctl->dbgmsg_svr->ready);
+            if (ctl->dbgmsg_svr->ready == true)
+            {
+                ret = dbgmsg_svr_rcv(ctl->dbgmsg_svr); WRN_NZERO(ret);
+            }
+        }
+    }
+
+    ret = 0;
+LEXIT;
+    return(ret);
+LERROR;
+    GOEXIT;
+}
+
 static int
 dbg_svr_log_shift (
     DBG_SVR_CTL * const                 ctl)
@@ -231,19 +434,29 @@ LERROR;
 }
 
 static int
-dbg_svr_log_write (
-    DBG_SVR_CTL * const                 ctl,
-    char * const                        str)
+dbg_svr_log_fprintf (
+    DBG_SVR_CTL * const                 ctl)
 {   ENTR();
     int                                 ret = -1;
-    ERR_NULL(ctl); ERR_NULL(str);
+    ERR_NULL(ctl);
 
     if (ctl->log_fp == NULL)
     {
         ret = dbg_svr_log_open(ctl); ERR_NZERO(ret);
     }
 
-    ret = fprintf(ctl->log_fp, "%s\r\n", str); WRN_NPOS(ret);
+    if (ctl->cfg->dbgmsg_svr_enable)
+    {
+        WRN_NULL(ctl->dbgmsg_svr);
+        if (ctl->dbgmsg_svr != NULL)
+        {
+            WRN_FALSE(ctl->dbgmsg_svr->ready);
+            if (ctl->dbgmsg_svr->ready == true)
+            {
+                ret = dbgmsg_svr_fprintf(ctl->dbgmsg_svr, ctl->log_fp); WRN_NZERO(ret);
+            }
+        }
+    }
 
     ret = 0;
 LEXIT;
@@ -265,7 +478,7 @@ dbg_svr_log_write_trailer (
                   ctl->LOCAL_YEAR, ctl->LOCAL_MON, ctl->LOCAL_DAY,
                   ctl->LOCAL_HOUR, ctl->LOCAL_MIN, ctl->LOCAL_SEC); WRN_NPOS(ret);
 
-    // dbg_svr_log_flush(ctl);
+    ret = fflush(ctl->log_fp); WRN_NZERO(ret);
 
     ret = 0;
 LEXIT;
@@ -296,7 +509,7 @@ dbg_svr_log_write_header (
                   ctl->LOCAL_YEAR, ctl->LOCAL_MON, ctl->LOCAL_DAY,
                   ctl->LOCAL_HOUR, ctl->LOCAL_MIN, ctl->LOCAL_SEC); WRN_NPOS(ret);
 
-    // dbg_svr_log_flush(ctl);
+    ret = fflush(ctl->log_fp); WRN_NZERO(ret);
 
     ret = 0;
 LEXIT;
@@ -315,7 +528,7 @@ dbg_svr_log_name_new (
     MEMZ(ctl->log_name, DBG_SVR_LOG_NAME_LEN);
     ctl->time_now = time(NULL);
     ctl->time_local = localtime(&(ctl->time_now));
-    ret = snprintf(ctl->log_name, DBG_SVR_LOG_NAME_LEN, "dbg-%04d-%04d%02d%02d-%02d%02d%02d.txt",
+    ret = snprintf(ctl->log_name, DBG_SVR_LOG_NAME_LEN, DBG_SVR_LOG_NAME_FMT,
                    ctl->idx_create, ctl->LOCAL_YEAR, ctl->LOCAL_MON, ctl->LOCAL_DAY,
                    ctl->LOCAL_HOUR, ctl->LOCAL_MIN, ctl->LOCAL_SEC); ERR_NPOS(ret);
     INF("log_name=\"%s\"", ctl->log_name);
@@ -354,6 +567,7 @@ dbg_svr_log_close (
     {
         ret = dbg_svr_log_write_trailer(ctl); WRN_NZERO(ret);
 
+        ret = fflush(ctl->log_fp); WRN_NZERO(ret);
         fclose(ctl->log_fp);
         ctl->log_fp = NULL;
         LOG("close=\"%s\"", ctl->log_path_name);
@@ -452,22 +666,6 @@ LERROR;
     GOEXIT;
 }
 
-static void
-dbg_svr_idx_flush (
-    DBG_SVR_CTL *                       const ctl)
-{   ENTR();
-    int                                 ret = -1;
-    ERR_NULL(ctl);
-    ERR_NULL(ctl->idx_fp);
-
-    ret = fflush(ctl->idx_fp); WRN_NZERO(ret);
-
-LEXIT;
-    return;
-LERROR;
-    GOEXIT;
-}
-
 static int
 dbg_svr_idx_write (
     DBG_SVR_CTL * const                 ctl)
@@ -532,10 +730,14 @@ static void
 dbg_svr_idx_close (
     DBG_SVR_CTL * const                 ctl)
 {   ENTR();
+    int                                 ret = -1;
+
     ERR_NULL(ctl);
 
     if (ctl->idx_fp != NULL)
     {
+
+        ret = fflush(ctl->idx_fp); WRN_NZERO(ret);
         fclose(ctl->idx_fp);
         ctl->idx_fp = NULL;
     }
@@ -559,7 +761,7 @@ dbg_svr_idx_open_write (
         dbg_svr_idx_close(ctl);
     }
 
-    snprintf(ctl->idx_path_name, DBG_SVR_IDX_PATH_NAME_LEN, "%s/%s", ctl->cfg->dir_path, DBG_SVR_IDX_NAME_DFT);
+    snprintf(ctl->idx_path_name, DBG_SVR_IDX_PATH_NAME_LEN, "%s/"DBG_SVR_IDX_NAME_FMT, ctl->cfg->dir_path);
     ctl->idx_fp = fopen(ctl->idx_path_name, "w+"); ERR_NULL(ctl->idx_fp);
     rewind(ctl->idx_fp);
     INF("open=\"%s\"", ctl->idx_path_name);
@@ -584,7 +786,7 @@ dbg_svr_idx_open_read (
         dbg_svr_idx_close(ctl);
     }
 
-    snprintf(ctl->idx_path_name, DBG_SVR_IDX_PATH_NAME_LEN, "%s/%s", ctl->cfg->dir_path, DBG_SVR_IDX_NAME_DFT);
+    snprintf(ctl->idx_path_name, DBG_SVR_IDX_PATH_NAME_LEN, "%s/"DBG_SVR_IDX_NAME_FMT, ctl->cfg->dir_path);
     ctl->idx_fp = fopen(ctl->idx_path_name, "r"); ERR_NULL(ctl->idx_fp);
     rewind(ctl->idx_fp);
     INF("open=\"%s\"", ctl->idx_path_name);
@@ -698,8 +900,8 @@ dbg_svr_cfg_show (
     ERR_NULL(cfg);
 
     LOG("dir_path=\"%s\"", cfg->dir_path);
-    LOG("log_size=%d", cfg->log_size);
-    LOG("log_count=%d", cfg->log_count);
+    LOG("log_size=%u", cfg->log_size);
+    LOG("log_count=%u", cfg->log_count);
     LOG("dbgmsg_svr_enable=%s", STRBOOL(cfg->dbgmsg_svr_enable));
 
     if (cfg->dbgmsg_svr_enable == true)
@@ -726,6 +928,7 @@ dbg_svr_cfg (
     ERR_NULL(cfg); ERR_NPOS(argc); ERR_NULL(argv);
 
     MEMZ(cfg, sizeof(DBG_SVR_CFG));
+    optind = 0;
     while (1)
     {
         optchar = getopt_long_only(argc, argv, "", optlist, &optindex);
@@ -736,37 +939,44 @@ dbg_svr_cfg (
         case DBG_SVR_OPTC_LOG_PATH:
             ERR_OPTARG_INVALID();
             snprintf(cfg->dir_path, DBG_SVR_DIR_PATH_LEN, "%s", optarg);
+            INF("dir_path=\"%s\"", cfg->dir_path);
             break;
         case DBG_SVR_OPTC_LOG_SIZE:
             ERR_OPTARG_INVALID();
-            cfg->log_size = strtol(optarg, NULL, 0);
+            cfg->log_size = strtoul(optarg, NULL, 0);
+            INF("log_size=%u", cfg->log_size);
             break;
         case DBG_SVR_OPTC_LOG_COUNT:
             ERR_OPTARG_INVALID();
-            cfg->log_count = strtol(optarg, NULL, 0);
+            cfg->log_count = strtoul(optarg, NULL, 0);
+            INF("log_count=%u", cfg->log_count);
             break;
         case DBG_SVR_OPTC_DBGMSG_SVR:
             cfg->dbgmsg_svr_enable = true;
+            INF("dbgmsg_svr_enable=%s", STRBOOL(cfg->dbgmsg_svr_enable));
             break;
         default:
                 break;
         }
     }
 
-    if (strnlen(cfg->dir_path, DBG_SVR_DIR_PATH_LEN) < 1)
+    if (strnlen(cfg->dir_path, DBG_SVR_DIR_PATH_LEN) < 2)
     {
-        snprintf(cfg->dir_path, DBG_SVR_DIR_PATH_LEN, "%s", DBG_SVR_LOG_PATH_DFT);
+        snprintf(cfg->dir_path, DBG_SVR_DIR_PATH_LEN, "%s", DBG_SVR_DIR_PATH_DFT);
+        INF("dir_path=\"%s\"", cfg->dir_path);
     }
 
-    if (cfg->log_size < 1)
+    if ((cfg->log_size < DBG_SVR_LOG_SIZE_MIN) || (cfg->log_size > DBG_SVR_LOG_SIZE_MAX))
     {
         cfg->log_size = DBG_SVR_LOG_SIZE_DFT;
+        INF("log_size=%u", cfg->log_size);
     }
     ERR_RANGE(cfg->log_size, DBG_SVR_LOG_SIZE_MIN, DBG_SVR_LOG_SIZE_MAX);
 
-    if (cfg->log_count < 1)
+    if ((cfg->log_count < DBG_SVR_LOG_COUNT_MIN) || (cfg->log_count > DBG_SVR_LOG_COUNT_MAX))
     {
         cfg->log_count = DBG_SVR_LOG_COUNT_DFT;
+        INF("log_count=%u", cfg->log_count);
     }
     ERR_RANGE(cfg->log_count, DBG_SVR_LOG_COUNT_MIN, DBG_SVR_LOG_COUNT_MAX);
 
@@ -861,13 +1071,30 @@ LERROR;
 }
 
 /*____________________________________________________________________________*/
+/* DBG_CLNT */
+/*------------------------------------*/
+
+
+
+
+/*____________________________________________________________________________*/
 /* MAIN */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
 static int
 main_loop (void)
 {   ENTR();
     int                                 ret = -1;
+    ERR_NULL(gctl); ERR_NULL(gcfg);
 
+    while (1)
+    {
+        ERR_NULL(gctl->dbg_svr);
+        WRN_FALSE(gctl->dbg_svr->ready);
+        if (gctl->dbg_svr->ready == true)
+        {
+            ret = dbg_svr_loop_job(gctl->dbg_svr); WRN_NZERO(ret);
+        }
+    }
 
     ret = 0;
 LEXIT;
@@ -910,6 +1137,7 @@ main_cfg (
         LOG("argv[%d]=\"%s\"", i, argv[i]);
     }
 
+    optind = 0;
     while (1)
     {
         optchar = getopt_long_only(argc, argv, "", optlist, &optindex);
@@ -923,12 +1151,20 @@ main_cfg (
             break;
         case GOPTC_VERBOSE:
             ERR_OPTARG_INVALID();
-            gverbose = strtol(optarg, NULL, 0);
+            gverbose = strtoul(optarg, NULL, 0);
+            INF("gverbose=%u", gverbose);
             break;
         default:
             break;
         }
     }
+
+    if ((gverbose < DBG_SVR_VERBOSE_MIN) || (gverbose > DBG_SVR_VERBOSE_MAX))
+    {
+        gverbose = DBG_SVR_VERBOSE_DFT;
+        INF("gverbose=%u", gverbose);
+    }
+    ERR_RANGE(gverbose, DBG_SVR_VERBOSE_MIN, DBG_SVR_VERBOSE_MAX);
 
     gcfg->dbg_svr = &(gcfg->_dbg_svr);
     ret = dbg_svr_cfg(gcfg->dbg_svr, argc, argv); ERR_NZERO(ret);
@@ -1012,6 +1248,7 @@ main (
 
     ret = main_cfg(argc, argv);
     main_cfg_show();
+
     ret = main_init(); ERR_NZERO(ret);
     ret = main_loop(); ERR_NZERO(ret);
 
@@ -1023,532 +1260,4 @@ LERROR;
     GOEXIT;
 }
 
-
-// /*____________________________________________________________________________*/
-// /* DBGMSG_SERVER*/
-// /*------------------------------------*/
-// static int dbgmsg_svr_reset (DBGMSG_SERVER_CTL * const ctl);
-// static void dbgmsg_svr_release (DBGMSG_SERVER_CTL * const ctl);
-// static int dbgmsg_svr_init (DBGMSG_SERVER_CTL * const ctl, DBGMSG_SERVER_CFG * const cfg);
-// /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
-
-
-// /*____________________________________________________________________________*/
-// /* DBGMSG */
-// /*------------------------------------*/
-// static int
-// dbgmsg_server_printf (
-//         DBGMSG_SERVER_CTL * const       ctl)
-// {       ENTR();
-//         int                             ret = -1;
-//         ERR_NULL(ctl);
-
-//         ret = 0;
-// exit:   EXIT();
-//         return(ret);
-// error:  FAIL();
-//         goto exit;
-// }       /* dbgmsg_server_printf */
-// /*------------------------------------*/
-// static int
-// dbgmsg_server_send (
-//         DBGMSG_SERVER_CTL * const       ctl)
-// {       ENTR();
-//         int                             ret = -1;
-//         ERR_NULL(ctl);
-
-//         ret = 0;
-// exit:   EXIT();
-//         return(ret);
-// error:  FAIL();
-//         goto exit;
-// }       /* dbgmsg_server_send */
-// /*------------------------------------*/
-// static int
-// dbgmsg_server_recv (
-//         DBGMSG_SERVER_CTL * const       ctl)
-// {       ENTR();
-//         int                             ret = -1;
-//         ERR_NULL(ctl);
-
-//         ret = 0;
-// exit:   EXIT();
-//         return(ret);
-// error:  FAIL();
-//         goto exit;
-// }       /* dbgmsg_server_recv */
-// /*------------------------------------*/
-// static int
-// dbgmsg_server_reset (
-//         DBGMSG_SERVER_CTL * const       ctl)
-// {       ENTR();
-//         int                             ret = -1;
-//         DBGMSG_SERVER_CFG *                    cfg = NULL;
-//         ERR_NULL(ctl);
-
-//         if (ctl->cfg != NULL)
-//         {
-//                 MALLOCZ(cfg, DBGMSG_SERVER_CFG); ERR_NULL(cfg);
-//                 memcpy(cfg, ctl->cfg, sizeof(DBGMSG_SERVER_CFG));
-//                 INF("original cfg backup");
-//         }
-
-//         dbgmsg_server_release(ctl);
-
-//         ret = dbgmsg_server_init(ctl, cfg); ERR_NZERO(ret);
-
-//         ret = 0;
-// exit:   EXIT();
-//         free(cfg);
-//         return(ret);
-// error:  FAIL();
-//         ERR_ERRNO();
-//         goto exit;
-// }       /* dbgmsg_server_reset */
-// /*------------------------------------*/
-// static void
-// dbgmsg_server_release (
-//         DBGMSG_SERVER_CTL * const       ctl)
-// {       ENTR();
-//         ERR_NULL(ctl);
-
-//         // if (ctl->msg_qid >= 0)
-//         // {
-//         //         if (msgctl(ctl->msg_qid, IPC_RMID, NULL) < 0)
-//         //         {
-//         //                 ERR_ERRNO();
-//         //         }
-//         // }
-//         MEMZ(ctl, sizeof(DBGMSG_SERVER_CTL));
-
-// exit:   EXIT();
-//         return;
-// error:  FAIL();
-//         goto exit;
-// }       /* dbgmsg_server_release */
-// /*------------------------------------*/
-// static int
-// dbgmsg_server_init (
-//         DBGMSG_SERVER_CTL * const       ctl,
-//         DBGMSG_SERVER_CFG * const       cfg)
-// {       ENTR();
-//         int                             ret = -1;
-//         ERR_NULL(ctl);
-
-//         // if (ctl->cfg != NULL)
-//         // {
-//         //         dbgmsg_server_release(ctl);
-//         // }
-//         // ctl->cfg = &(ctl->CFG);
-
-//         // if (cfg == NULL)
-//         // {       /* use default cfg */
-//         //         snprintf(ctl->cfg->key_path, DBGMSG_SERVER_KEY_PATH_LEN, DBGMSG_SERVER_KEY_PATH_DFT);
-//         //         INF("key_path=\"%s\"", ctl->cfg->key_path);
-//         //         ctl->cfg->key_id = DBGMSG_SERVER_KEY_ID_DFT;
-//         //         INF("key_id=0x%X", ctl->cfg->key_id);
-//         //         ctl->cfg->log_size = DBGMSG_SERVER_LOG_SIZE_DFT;
-//         //         INF("log_size=0x%X", ctl->cfg->log_size);
-//         //         ctl->cfg->log_count = DBGMSG_SERVER_LOG_COUNT_DFT;
-//         //         INF("log_count=0x%X", ctl->cfg->log_count);
-//         // }
-//         // else
-//         // {
-//         //         if (cfg->key != 0)
-//         //         {       /* use given key */
-//         //                 ctl->cfg->key = cfg->key;
-//         //                 INF("key=0x%X", ctl->cfg->key);
-//         //         }
-//         //         else
-//         //         {
-//         //                 if (strnlen(cfg->key_path, DBGMSG_SERVER_KEY_PATH_LEN) < 1)
-//         //                 {       /* use default key_path */
-//         //                         snprintf(ctl->cfg->key_path, DBGMSG_SERVER_KEY_PATH_LEN, DBGMSG_SERVER_KEY_PATH_DFT);
-//         //                 }
-//         //                 else
-//         //                 {       /* use given key_path */
-//         //                         snprintf(ctl->cfg->key_path, DBGMSG_SERVER_KEY_PATH_LEN, "%s", cfg->key_path);
-//         //                 }
-//         //                 INF("key_path=\"%s\"", ctl->cfg->key_path);
-
-//         //                 if ((cfg->key_id < 0x01) || (cfg->key_id > 0xFF))
-//         //                 {       /* use default key_id */
-//         //                         ctl->cfg->key_id = DBGMSG_SERVER_KEY_ID_DFT;
-//         //                 }
-//         //                 else
-//         //                 {       /* use given key_id */
-//         //                         ctl->cfg->key_id = cfg->key_id;
-//         //                 }
-//         //                 INF("key_id=%d", ctl->cfg->key_id);
-//         //         }
-
-//         //         if (cfg->log_size == 0)
-//         //         {
-//         //                 ctl->cfg->log_size = DBGMSG_SERVER_LOG_SIZE_DFT;
-//         //         }
-//         //         else
-//         //         {
-//         //                 ctl->cfg->log_size = cfg->log_size;
-//         //         }
-//         //         INF("log_size=0x%X", ctl->cfg->log_size);
-
-//         //         if (cfg->log_count == 0)
-//         //         {
-//         //                 ctl->cfg->log_count = DBGMSG_SERVER_LOG_COUNT_DFT;
-//         //         }
-//         //         else
-//         //         {
-//         //                 ctl->cfg->log_count = cfg->log_count;
-//         //         }
-//         //         INF("log_count=0x%X", ctl->cfg->log_count);
-//         // }
-
-//         // if (ctl->cfg->key == 0)
-//         // {       /* generate key from key_path and key_id */
-//         //         ctl->cfg->key = ftok(ctl->cfg->key_path, ctl->cfg->key_id); ERR_NEG(ctl->cfg->key);
-//         //         INF("key=0x%X", ctl->cfg->key);
-//         // }
-//         // ctl->msg_key = ctl->cfg->key;
-//         // LOG("msg_key=0x%X", ctl->msg_key);
-
-//         // ctl->msg_qid = msgget(ctl->msg_key, (IPC_CREAT | IPC_EXCL));
-//         // if ((ctl->msg_qid < 0) && (errno == EEXIST))
-//         // {       /* remove old msgq and generate new msgq */
-//         //         ctl->msg_qid = msgget(ctl->msg_key, 0); ERR_NEG(ctl->msg_qid);
-//         //         ret = msgctl(ctl->msg_qid, IPC_RMID, NULL); ERR_NEG(ret);
-//         //         INF("msg_qid=0x%X removed", ctl->msg_qid);
-//         //         ctl->msg_qid = msgget(ctl->msg_key, IPC_CREAT); ERR_NEG(ctl->msg_qid);
-//         // }
-//         // ERR_NEG(ctl->msg_qid);
-//         // LOG("msg_qid=0x%X", ctl->msg_qid);
-
-//         ret = 0;
-// exit:   EXIT();
-//         return(ret);
-// error:  FAIL();
-//         ERR_ERRNO();
-//         goto exit;
-// }       /* dbgmsg_server_init */
-// /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
-
-// /*____________________________________________________________________________*/
-// /* DBG_SERVER */
-// /*------------------------------------*/
-// static int
-// dbg_server_loop (void)
-// {       ENTR();
-//         int                             ret = -1;
-
-//         ret = 0;
-// exit:   EXIT();
-//         return(ret);
-// error:  FAIL();
-//         goto exit;
-// }       /* dbg_server_loop */
-// /*------------------------------------*/
-// static int
-// dbg_server_log_create (void)
-// {       ENTR();
-//         int                             ret = -1;
-
-//         gctl->t_now = time(NULL);
-//         gctl->local = localtime(&(gctl->t_now));
-//         snprintf(gctl->log_name, DBG_SERVER_LOG_NAME_LEN, "%04d-%04d%02d%02d-%02d%02d%02d-dbg.txt",
-//                  gctl->idx_create, (gctl->local->tm_year + 1900), (gctl->local->tm_mon + 1), gctl->local->tm_mday,
-//                  gctl->local->tm_hour, gctl->local->tm_min, gctl->local->tm_sec);
-//         snprintf(gctl->log_path_name, DBG_SERVER_LOG_PATH_NAME_LEN, "%s/%s", gcfg->dir_path, gctl->log_name);
-//         INF("log_path_name=\"%s\"", gctl->log_path_name);
-
-//         if (gctl->log_fp != NULL)
-//         {
-//                 fclose(gctl->log_fp);
-//                 gctl->log_fp = NULL;
-//         }
-//         gctl->log_fp = fopen(gctl->log_path_name, "w+"); ERR_NULL(gctl->log_fp);
-//         gctl->idx_create++;
-//         ret = dbg_server_idx_update(); ERR_NZERO(ret);
-
-//         ret = 0;
-// exit:   EXIT();
-//         return(ret);
-// error:  FAIL();
-//         goto exit;
-// }       /* dbg_server_log_create */
-// /*------------------------------------*/
-// static int
-// dbg_server_idx_update (void)
-// {       ENTR();
-//         int                             ret = -1;
-//         int                             len;
-
-//         len = strnlen(gctl->idx_path_name, DBG_SERVER_IDX_PATH_NAME_LEN);
-//         if (len < 1)
-//         {
-//                 snprintf(gctl->idx_path_name, DBG_SERVER_IDX_PATH_NAME_LEN, "%s/%s", gcfg->dir_path, DBG_SERVER_IDX_NAME_DFT);
-//         }
-
-//         gctl->idx_fp = fopen(gctl->idx_path_name, "w+"); ERR_NULL(gctl->idx_fp);
-//         fprintf(gctl->idx_fp, "[create=%04d][delete=%04d]\r\n", gctl->idx_create, gctl->idx_delete);
-//         INF("[create=%04d][delete=%04d]", gctl->idx_create, gctl->idx_delete);
-//         ret = fclose(gctl->idx_fp); ERR_NZERO(ret);
-
-//         ret = 0;
-// exit:   EXIT();
-//         return(ret);
-// error:  FAIL();
-//         ERR_ERRNO();
-//         goto exit;
-// }       /* dbg_server_idx_update */
-// /*------------------------------------*/
-// static int
-// dbg_server_idx_fetch (void)
-// {       ENTR();
-//         int                             ret = -1;
-//         int                             len;
-
-//         len = strnlen(gctl->idx_path_name, DBG_SERVER_IDX_PATH_NAME_LEN);
-//         if (len < 1)
-//         {
-//                 snprintf(gctl->idx_path_name, DBG_SERVER_IDX_PATH_NAME_LEN, "%s/%s", gcfg->dir_path, DBG_SERVER_IDX_NAME_DFT);
-//         }
-
-//         gctl->idx_fp = fopen(gctl->idx_path_name, "a+"); ERR_NULL(gctl->idx_fp);
-//         rewind(gctl->idx_fp);
-//         ret = fscanf(gctl->idx_fp, "[create=%04d][delete=%04d]", &(gctl->idx_create), &(gctl->idx_delete));
-//         if (ret < 1)
-//         {
-//                 gctl->idx_create = DBG_SERVER_IDX_MIN;
-//                 gctl->idx_delete = DBG_SERVER_IDX_MIN;
-//                 rewind(gctl->idx_fp);
-//                 fprintf(gctl->idx_fp, "[create=%04d][delete=%04d]\r\n", gctl->idx_create, gctl->idx_delete);
-//         }
-//         ret = fclose(gctl->idx_fp); ERR_NZERO(ret);
-
-//         ret = 0;
-// exit:   EXIT();
-//         return(ret);
-// error:  FAIL();
-//         ERR_ERRNO();
-//         goto exit;
-// }       /* dbg_server_idx_fetch */
-// /*------------------------------------*/
-// static int
-// dbg_server_mkdir (void)
-// {       ENTR();
-//         int                             ret = -1;
-//         int                             i;
-//         int                             len;
-//         DIR *                           dir;
-//         char                            strdir[DBG_SERVER_LOG_PATH_LEN] = {'0'};
-
-//         dir = opendir(gcfg->dir_path);
-//         if (dir != NULL)
-//         {
-//                 ret = closedir(dir); ERR_NZERO(ret);
-//                 goto exit;
-//         }
-
-//         len = strlen(gcfg->dir_path);
-//         for (i = 0; i < len; i++)
-//         {
-//                 if (((gcfg->dir_path[i] == '/') && (i > 0)) || (i == (len - 1)))
-//                 {
-//                         snprintf(strdir, (i + 2), "%s", gcfg->dir_path);
-//                         INF("mkdir=\"%s\"", strdir);
-//                         ret = mkdir(strdir, DEFFILEMODE);
-//                         if ((ret < 0) && (errno != EEXIST))
-//                         {
-//                                 ERR_NZERO(ret);
-//                         }
-//                 }
-//         }
-
-//         dir = opendir(gcfg->dir_path);
-//         if (dir != NULL)
-//         {
-//                 ret = closedir(dir); ERR_NZERO(ret);
-//                 goto exit;
-//         }
-//         else
-//         {
-//                 ret = -1;
-//                 goto error;
-//         }
-
-//         ret = 0;
-// exit:   EXIT();
-//         return(ret);
-// error:  FAIL();
-//         ERR_ERRNO();
-//         goto exit;
-// }       /* dbg_server_mkdir */
-// /*------------------------------------*/
-// static int
-// dbg_server_reset (void)
-// {       ENTR();
-//         int                             ret = -1;
-
-//         ret = 0;
-// exit:   EXIT();
-//         return(ret);
-// error:  FAIL();
-//         goto exit;
-// }       /* dbg_server_reset */
-// /*------------------------------------*/
-// static void
-// dbg_server_exit (
-//         int                             ret)
-// {       ENTR();
-
-//         if (gctl->dbgmsg_server)
-//         {
-//                 dbgmsg_server_release(gctl->dbgmsg_server);
-//         }
-
-// exit:   EXIT();
-//         exit(ret);
-//         return;
-// }       /* dbg_server_exit */
-// /*------------------------------------*/
-
-
-// #define OPTARG_INVALID(ARG)             (ARG==NULL)||(ARG[0]=='-')||(strlen(ARG)<1)
-// #define ERR_OPTARG_INVALID() \
-// DOWHILE(if(OPTARG_INVALID(optarg)){ERR("option --%s need argument", optlist[optindex].name); goto error;})
-// /*------------------------------------*/
-
-// /*------------------------------------*/
-// static int
-// dbg_server_init (
-//         const int                       argc,
-//         char * const                    argv[])
-// {       ENTR();
-//         int                             ret = -1;
-//         int                             optchar;
-//         int                             optindex;
-//         ERR_NPOS(argc); ERR_NULL(argv);
-
-//         ERR_NULL(gstat);
-//         MEMZ(gstat, sizeof(GLOBAL_STAT));
-
-//         ERR_NULL(gcfg);
-//         MEMZ(gcfg, sizeof(GLOBAL_CFG));
-//         gcfg->verbose = DBG_VERBOSE_DFT;
-//         gcfg->dbgmsg_server = &(gcfg->DBGMSG_SERVER);
-
-//         ERR_NULL(gctl);
-//         MEMZ(gctl, sizeof(GLOBAL_CTL));
-
-//         gstat->pid  = getpid();
-//         gstat->ppid = getppid();
-//         LOG("pid=%d ppid=%d argc=%d argv=%p", gstat->pid, gstat->ppid, argc, argv);
-//         for (int i = 0; i < argc; i++)
-//         {
-//                 LOG("argv[%d]=\"%s\"", i, argv[i]);
-//         }
-
-//         while (1)
-//         {
-//                 optchar = getopt_long_only(argc, argv, "", optlist, &optindex);
-//                 if (optchar == -1) { break; }
-
-//                 switch (optchar)
-//                 {
-//                 case OPTC_HELP:
-//                         dbg_server_help(argv[0]);
-//                         break;
-//                 case OPTC_VERBOSE:
-//                         ERR_OPTARG_INVALID();
-//                         gcfg->verbose = strtol(optarg, NULL, 0);
-//                         INF("verbose=%d", gcfg->verbose);
-//                         break;
-//                 case OPTC_LOG_PATH:
-//                         ERR_OPTARG_INVALID();
-//                         snprintf(gcfg->dir_path, DBG_SERVER_LOG_PATH_LEN, "%s", optarg);
-//                         INF("dir_path=\"%s\"", gcfg->dir_path);
-//                         break;
-//                 case OPTC_LOG_SIZE:
-//                         ERR_OPTARG_INVALID();
-//                         gcfg->log_size = strtol(optarg, NULL, 0);
-//                         ERR_RANGE(gcfg->log_size, DBG_SERVER_LOG_SIZE_MIN, DBG_SERVER_LOG_SIZE_MAX);
-//                         INF("log_size=%dMB", gcfg->log_size);
-//                         break;
-//                 case OPTC_LOG_COUNT:
-//                         ERR_OPTARG_INVALID();
-//                         gcfg->log_count = strtol(optarg, NULL, 0);
-//                         ERR_RANGE(gcfg->log_count, DBG_SERVER_LOG_COUNT_MIN, DBG_SERVER_LOG_COUNT_MAX);
-//                         INF("log_count=%d", gcfg->log_count);
-//                         break;
-//                 case OPTC_DBGMSG_ENABLE:
-//                         gcfg->dbgmsg_server_enable = true;
-//                         INF("dbgmsg_server_enable=%s", STRBOOL(gcfg->dbgmsg_server_enable));
-//                         break;
-//                 case OPTC_DBGMSG_KEY:
-//                         ERR_OPTARG_INVALID();
-//                         gcfg->dbgmsg_server->key = strtol(optarg, NULL, 0);
-//                         INF("key=0x%X", gcfg->dbgmsg_server->key);
-//                         break;
-//                 case 0:
-//                         if (strncmp(optlist[optindex].name, OPTL_DBGMSG_KEY_PATH, strlen(OPTL_DBGMSG_KEY_PATH)) == 0)
-//                         {
-//                                 ERR_OPTARG_INVALID();
-//                                 snprintf(gcfg->dbgmsg_server->key_path, DBGMSG_SERVER_KEY_PATH_LEN, "%s", optarg);
-//                                 INF("key_path=\"%s\"", gcfg->dbgmsg_server->key_path);
-//                         }
-//                         else if (strncmp(optlist[optindex].name, OPTL_DBGMSG_KEY_ID, strlen(OPTL_DBGMSG_KEY_ID)) == 0)
-//                         {
-//                                 ERR_OPTARG_INVALID();
-//                                 gcfg->dbgmsg_server->key_id = strtol(optarg, NULL, 0);
-//                                 ERR_RANGE(gcfg->dbgmsg_server->key_id, 0x01, 0xFF);
-//                                 INF("key_id=%d", gcfg->dbgmsg_server->key_id);
-//                         }
-//                         break;
-//                 default:
-//                         break;
-//                 }
-//         }
-
-//         LOG("verbose=%d", gcfg->verbose);
-
-//         if (strnlen(gcfg->dir_path, DBG_SERVER_LOG_PATH_LEN) < 1)
-//         {       /* default dir_path */
-//                 snprintf(gcfg->dir_path, DBG_SERVER_LOG_PATH_LEN, "%s", DBG_SERVER_LOG_PATH_DFT);
-//         }
-//         LOG("dir_path=%s", gcfg->dir_path);
-
-//         if (gcfg->log_size < 1)
-//         {       /* default log_size */
-//                 gcfg->log_size = DBG_SERVER_LOG_SIZE_DFT;
-//         }
-//         REGULATE_RANGE(gcfg->log_size, DBG_SERVER_LOG_SIZE_MIN, DBG_SERVER_LOG_SIZE_MAX);
-//         LOG("log_size=%dMB", gcfg->log_size);
-
-//         if (gcfg->log_count < 1)
-//         {       /* default log_count */
-//                 gcfg->log_count = DBG_SERVER_LOG_COUNT_DFT;
-//         }
-//         REGULATE_RANGE(gcfg->log_count, DBG_SERVER_LOG_COUNT_MIN, DBG_SERVER_LOG_COUNT_MAX);
-//         LOG("log_count=%d", gcfg->log_count);
-
-//         ret = dbg_server_mkdir(); ERR_NZERO(ret);
-//         ret = dbg_server_idx_fetch(); ERR_NZERO(ret);
-//         ret = dbg_server_log_create(); ERR_NZERO(ret);
-
-
-
-//         if (gcfg->dbgmsg_server_enable)
-//         {
-//                 LOG("dbgmsg_server_enable=%s", STRBOOL(gcfg->dbgmsg_server_enable));
-//                 gctl->dbgmsg_server = &(gctl->DBGMSG_SERVER);
-//                 ret = dbgmsg_server_init(gctl->dbgmsg_server, gcfg->dbgmsg_server); ERR_NZERO(ret);
-//         }
-
-//         ret = 0;
-// exit:   EXIT();
-//         return(ret);
-// error:  FAIL();
-//         ERR_ERRNO();
-//         goto exit;
-// }       /* dbg_server_init */
-// /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
-
+/*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
