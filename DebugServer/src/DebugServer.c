@@ -2,19 +2,19 @@
 /*____________________________________________________________________________*/
 /* INCLUDE */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
-#include "DebugServer.h"
+#include "debug.h"
 
 /*____________________________________________________________________________*/
 /* GLOBAL */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
 typedef struct GLOBAL_CFG {
+    // DBGMSG_CFG                          _dbgmsg, * dbgmsg;
     DBG_SVR_CFG                         _dbg_svr, * dbg_svr;
-    DBGMSG_CFG                          _dbgmsg, * dbgmsg;
 } GLOBAL_CFG;
 
 typedef struct GLOBAL_CTL {
+    // DBGMSG_CTL                          _dbgmsg, * dbgmsg;
     DBG_SVR_CTL                         _dbg_svr, * dbg_svr;
-    DBGMSG_CTL                          _dbgmsg, * dbgmsg;
 } GLOBAL_CTL;
 
 static GLOBAL_CFG                       _gcfg, * const gcfg = &_gcfg;
@@ -23,8 +23,6 @@ static GLOBAL_CTL                       _gctl, * const gctl = &_gctl;
 /*____________________________________________________________________________*/
 /* OPTION */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
-extern int                              optind;
-extern char *                           optarg;
 static struct option                    optlist[] =
 {
     /* GLOBAL */
@@ -35,192 +33,12 @@ static struct option                    optlist[] =
     {DBG_SVR_OPTL_LOG_SIZE,             required_argument,  0,                  DBG_SVR_OPTC_LOG_SIZE},
     {DBG_SVR_OPTL_LOG_COUNT,            required_argument,  0,                  DBG_SVR_OPTC_LOG_COUNT},
     {DBG_SVR_OPTL_DBGMSG_SVR,           no_argument,        0,                  DBG_SVR_OPTC_DBGMSG_SVR},
-    /* DBGMSG */
-    {DBGMSG_OPTL_KEY,                   required_argument,  0,                  DBGMSG_OPTC_KEY},
-    {DBGMSG_OPTL_KEY_PATH,              required_argument,  0,                  0},
-    {DBGMSG_OPTL_KEY_ID,                required_argument,  0,                  0},
     {0, 0, 0, 0}
 };
-
-#define OPTARG_INVALID(ARG)             (ARG==NULL)||(ARG[0]=='-')||(strlen(ARG)<1)
-#define ERR_OPTARG_INVALID() \
-DO(if(OPTARG_INVALID(optarg)){ERR("option --%s need argument", optlist[optindex].name); goto error;})
-
 
 /*____________________________________________________________________________*/
 /* DBGMSG_SVR */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
-static int
-dbgmsg_svr_fprintf (
-    DBGMSG_SVR_CTL * const              ctl,
-    FILE * const                        fp)
-{   ENTR();
-    int                                 ret = -1;
-    DBGMSG_MSG *                        msg = NULL;
-    ERR_NULL(ctl); ERR_NULL(fp);
-    ERR_FALSE(ctl->ready);
-
-    if (ctl->msg_count < 1)
-    {
-        ret = 0;
-        GOEXIT;
-    }
-
-    for (uint32_t i = 0; i < ctl->msg_count; i++)
-    {
-        msg = &(ctl->msg_buf[i]);
-        ctl->time_msg = msg->src_time;
-        ctl->time_local = localtime(&(ctl->time_msg));
-
-        ret = fprintf(fp, DBGMSG_MSG_FMT,
-                      ctl->LOCAL_YEAR, ctl->LOCAL_MON, ctl->LOCAL_DAY,
-                      ctl->LOCAL_HOUR, ctl->LOCAL_MIN, ctl->LOCAL_SEC,
-                      msg->src_pid, msg->src_name, msg->text); WRN_NPOS(ret);
-
-        ret = fprintf(stdout, DBGMSG_MSG_FMT,
-                      ctl->LOCAL_YEAR, ctl->LOCAL_MON, ctl->LOCAL_DAY,
-                      ctl->LOCAL_HOUR, ctl->LOCAL_MIN, ctl->LOCAL_SEC,
-                      msg->src_pid, msg->src_name, msg->text); WRN_NPOS(ret);
-    }
-
-    ret = 0;
-LEXIT;
-    return(ret);
-LERROR;
-    GOEXIT;
-}
-
-static int
-dbgmsg_svr_rcv (
-    DBGMSG_SVR_CTL * const              ctl)
-{   ENTR();
-    int                                 ret = -1;
-    ERR_NULL(ctl);
-    ERR_FALSE(ctl->ready); ERR_NULL(ctl->dbgmsg); ERR_NEG(ctl->dbgmsg->qid);
-
-    if (ctl->msg_count > 0)
-    {
-        MEMZ(ctl->msg_buf, (ctl->msg_count * sizeof(DBGMSG_MSG)));
-    }
-    ctl->msg_count = 0;
-
-    for (int i = 0; i < DBGMSG_SVR_MSG_BUF_SIZE; i++)
-    {
-        ret = msgrcv(ctl->dbgmsg->qid,
-                     &(ctl->msg_buf[i]),
-                     (sizeof(DBGMSG_MSG) - sizeof(long)),
-                     DBGMSG_TYPE_DEBUG,
-                     (IPC_NOWAIT | MSG_NOERROR)); WRN_NPOS(ret);
-        if (ret <= 0)
-        {
-            break;
-        }
-        ctl->msg_count++;
-    }
-    if (ctl->msg_count > 0)
-    {
-        INF("msg_count=%u", ctl->msg_count);
-    }
-
-    ret = 0;
-LEXIT;
-    return(ret);
-LERROR;
-    GOEXIT;
-}
-
-static void
-dbgmsg_svr_cfg_show (
-    DBGMSG_SVR_CFG * const              cfg)
-{   ENTR();
-    ERR_NULL(cfg);
-
-    if (cfg->dbgmsg != NULL)
-    {
-        dbgmsg_cfg_show(cfg->dbgmsg);
-    }
-
-LEXIT;
-    return;
-LERROR;
-    GOEXIT;
-}
-
-static int
-dbgmsg_svr_cfg (
-    DBGMSG_SVR_CFG * const              cfg,
-    const int                           argc,
-    char * const                        argv[])
-{   ENTR();
-    int                                 ret = -1;
-    ERR_NULL(cfg); ERR_NPOS(argc); ERR_NULL(argv);
-
-    cfg->dbgmsg = gcfg->dbgmsg; ERR_NULL(cfg->dbgmsg);
-    ret = dbgmsg_cfg(cfg->dbgmsg, argc, argv); ERR_NZERO(ret);
-
-    ret = 0;
-LEXIT;
-    return(ret);
-LERROR;
-    GOEXIT;
-}
-
-static void
-dbgmsg_svr_help (void)
-{   ENTR();
-
-    dbgmsg_help();
-
-LEXIT;
-    return;
-}
-
-static void
-dbgmsg_svr_release (
-    DBGMSG_SVR_CTL * const              ctl)
-{   ENTR();
-    ERR_NULL(ctl);
-
-    if (ctl->dbgmsg != NULL)
-    {
-        dbgmsg_release(ctl->dbgmsg);
-    }
-
-    MEMZ(ctl, sizeof(DBGMSG_SVR_CTL));
-
-LEXIT;
-    return;
-LERROR;
-    GOEXIT;
-}
-
-static int
-dbgmsg_svr_init (
-    DBGMSG_SVR_CTL * const              ctl,
-    DBGMSG_SVR_CFG * const              cfg)
-{   ENTR();
-    int                                 ret = -1;
-    ERR_NULL(ctl); ERR_NULL(cfg);
-
-    if (ctl->cfg != NULL)
-    {
-        dbgmsg_svr_release(ctl);
-    }
-    ctl->cfg = cfg;
-
-    ctl->dbgmsg = gctl->dbgmsg; ERR_NULL(ctl->dbgmsg);
-    ret = dbgmsg_init(ctl->dbgmsg, cfg->dbgmsg); ERR_NZERO(ret);
-
-    ctl->ready = ctl->dbgmsg->ready;
-    LOG("ready=%s", STRBOOL(ctl->ready));
-
-    ret = 0;
-LEXIT;
-    return(ret);
-LERROR;
-    dbgmsg_svr_release(ctl);
-    GOEXIT;
-}
 
 /*____________________________________________________________________________*/
 /* DBG_SVR */
@@ -757,10 +575,9 @@ LERROR;
 }
 /*························································*/
 static void
-dbg_svr_cfg_show (
+dbg_svr_config_show (
     DBG_SVR_CFG * const                 cfg)
 {   ENTR();
-
     ERR_NULL(cfg);
 
     LOG("dir_path=\"%s\"", cfg->dir_path);
@@ -768,30 +585,34 @@ dbg_svr_cfg_show (
     LOG("log_count=%u", cfg->log_count);
     LOG("dbgmsg_svr_enable=%s", STRBOOL(cfg->dbgmsg_svr_enable));
 
-    if (cfg->dbgmsg_svr_enable == true)
-    {
-        dbgmsg_svr_cfg_show(cfg->dbgmsg_svr);
-    }
-
 LEXIT;
     return;
 LERROR;
     GOEXIT;
 }
-
+/*························································*/
 static int
-dbg_svr_cfg (
-    DBG_SVR_CFG * const                 cfg,
+dbg_svr_config (
+    DBG_SVR_CTL * const                 ctl,
     const int                           argc,
     char * const                        argv[])
 {   ENTR();
     int                                 ret = -1;
     int                                 optchar;
     int                                 optindex;
-
+    DBG_SVR_CFG *                       cfg = NULL;
     ERR_NULL(cfg); ERR_NPOS(argc); ERR_NULL(argv);
 
-    MEMZ(cfg, sizeof(DBG_SVR_CFG));
+    if (ctl->cfg == NULL)
+    {
+        MALLOCZ(ctl->cfg, DBG_SVR_CFG); ERR_NULL(ctl->cfg);
+    }
+    else
+    {
+        MEMZ(ctl->cfg, sizeof(DBG_SVR_CFG));
+    }
+    cfg = ctl->cfg;
+
     optind = 0;
     while (1)
     {
@@ -846,8 +667,7 @@ dbg_svr_cfg (
 
     if (cfg->dbgmsg_svr_enable == true)
     {
-        cfg->dbgmsg_svr = &(cfg->_dbgmsg_svr);
-        ret = dbgmsg_svr_cfg(cfg->dbgmsg_svr, argc, argv); ERR_NZERO(ret);
+        ret = dbgmsg_svr_cfg(ctl->dbgmsg_svr, argc, argv); ERR_NZERO(ret);
     }
 
     ret = 0;
@@ -856,7 +676,7 @@ LEXIT;
 LERROR;
     GOEXIT;
 }
-
+/*························································*/
 static void
 dbg_svr_help (void)
 {   ENTR();
@@ -871,8 +691,8 @@ dbg_svr_help (void)
 LEXIT;
     return;
 }
-
-static void
+/*························································*/
+void
 dbg_svr_release (
     DBG_SVR_CTL * const                 ctl)
 {   ENTR();
@@ -895,25 +715,22 @@ LEXIT;
 LERROR;
     GOEXIT;
 }
-
+/*························································*/
 static int
 dbg_svr_init (
     DBG_SVR_CTL * const                 ctl,
-    DBG_SVR_CFG * const                 cfg)
+    const int                           argc,
+    char * const                        argv[])
 {   ENTR();
     int                                 ret = -1;
-
-    ERR_NULL(ctl); ERR_NULL(cfg);
+    ERR_NULL(ctl); ERR_NPOS(argc); ERR_NULL(argv);
 
     if (ctl->cfg != NULL)
     {
         dbg_svr_release(ctl);
     }
-    ctl->cfg = cfg;
-
-    ctl->pid = getpid();
-    ctl->ppid = getppid();
-    LOG("pid=%d ppid=%d", ctl->pid, ctl->ppid);
+    ret = dbg_svr_config(ctl, argc, argv); ERR_NZERO(ret);
+    dbg_svr_config_show(ctl);
 
     ret = dbg_svr_mkdir(ctl); ERR_NZERO(ret);
     ret = dbg_svr_idx_read(ctl); ERR_NZERO(ret);
@@ -922,8 +739,7 @@ dbg_svr_init (
     if (cfg->dbgmsg_svr_enable == true)
     {
         ctl->dbgmsg_svr = &(ctl->_dbgmsg_svr);
-        cfg->dbgmsg_svr = &(cfg->_dbgmsg_svr);
-        ret = dbgmsg_svr_init(ctl->dbgmsg_svr, cfg->dbgmsg_svr); ERR_NZERO(ret);
+        ret = dbgmsg_svr_init(ctl->dbgmsg_svr, argc, argv); ERR_NZERO(ret);
     }
 
     ret = 0;
@@ -933,13 +749,6 @@ LERROR;
     dbg_svr_release(ctl);
     GOEXIT;
 }
-
-/*____________________________________________________________________________*/
-/* DBG_CLNT */
-/*------------------------------------*/
-
-
-
 
 /*____________________________________________________________________________*/
 /* MAIN */
@@ -1129,3 +938,7 @@ LERROR;
 }
 
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
+
+    // ctl->pid = getpid();
+    // ctl->ppid = getppid();
+    // LOG("pid=%d ppid=%d", ctl->pid, ctl->ppid);

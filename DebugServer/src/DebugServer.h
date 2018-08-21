@@ -5,34 +5,6 @@
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
 #include "debug.h"
 
-
-
-/*____________________________________________________________________________*/
-/* DBGMSG_SVR */
-/*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
-#define DBGMSG_SVR_MSG_BUF_SIZE         10
-#define DBGMSG_SVR_MSG_COUNT_MAX        (DBGMSG_SVR_MSG_BUF_SIZE - 1)
-/*························································*/
-typedef struct DBGMSG_SVR_CFG {
-    DBGMSG_CFG *                        dbgmsg;
-} DBGMSG_SVR_CFG;
-/*························································*/
-typedef struct DBGMSG_SVR_CTL {
-    DBGMSG_SVR_CFG *                    cfg;
-    DBGMSG_CTL *                        dbgmsg;
-    bool                                ready;
-    DBGMSG_MSG                          msg_buf[DBGMSG_SVR_MSG_BUF_SIZE];
-    uint32_t                            msg_count;
-    time_t                              time_msg;
-    struct tm *                         time_local;
-} DBGMSG_SVR_CTL;
-/*························································*/
-static void dbgmsg_svr_cfg_show (DBGMSG_SVR_CFG * const cfg);
-static int dbgmsg_svr_cfg (DBGMSG_SVR_CFG * const cfg, const int argc, char * const argv[]);
-static void dbgmsg_svr_help (void);
-static void dbgmsg_svr_release (DBGMSG_SVR_CTL * const ctl);
-static int dbgmsg_svr_init (DBGMSG_SVR_CTL * const ctl, DBGMSG_SVR_CFG * const cfg);
-
 /*____________________________________________________________________________*/
 /* DBG_SVR */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
@@ -81,14 +53,12 @@ typedef struct DBG_SVR_CFG {
     uint32_t                            log_size;           /* MB */
     uint32_t                            log_count;
     bool                                dbgmsg_svr_enable;
-    DBGMSG_SVR_CFG                      _dbgmsg_svr, * dbgmsg_svr;
 } DBG_SVR_CFG;
 /*························································*/
 typedef struct DBG_SVR_CTL {
-    DBG_SVR_CFG *                       cfg;
-    pid_t                               pid;
-    pid_t                               ppid;
     bool                                ready;
+    DBG_SVR_CFG *                       cfg;
+    DBGMSG_SVR_CTL                      _dbgmsg_svr, * dbgmsg_svr;
     time_t                              time_now;
     struct tm *                         time_local;
     char                                log_name[DBG_SVR_LOG_NAME_LEN];
@@ -100,7 +70,6 @@ typedef struct DBG_SVR_CTL {
     uint32_t                            idx_create;
     uint32_t                            idx_delete;
     DIR *                               dir;
-    DBGMSG_SVR_CTL                      _dbgmsg_svr, * dbgmsg_svr;
 } DBG_SVR_CTL;
 /*························································*/
 static int dbg_svr_loop_job (DBG_SVR_CTL * const ctl);
@@ -128,11 +97,11 @@ static int dbg_svr_mkdir (DBG_SVR_CTL * const ctl);
 static void dbg_svr_closedir (DBG_SVR_CTL * const ctl);
 static int dbg_svr_opendir (DBG_SVR_CTL * const ctl);
 /*························································*/
-static void dbg_svr_cfg_show (DBG_SVR_CFG * const cfg);
-static int dbg_svr_cfg (DBG_SVR_CFG * const cfg, const int argc, char * const argv[]);
+static void dbg_svr_config_show (DBG_SVR_CFG * const cfg);
+static int dbg_svr_config (DBG_SVR_CTL * const ctl, const int argc, char * const argv[]);
 static void dbg_svr_help (void);
-static void dbg_svr_release (DBG_SVR_CTL * const ctl);
-static int dbg_svr_init (DBG_SVR_CTL * const ctl, DBG_SVR_CFG * const cfg);
+void dbg_svr_release (DBG_SVR_CTL * const ctl);
+int dbg_svr_init (DBG_SVR_CTL * const ctl, const int argc, char * const argvp[]);
 
 /*____________________________________________________________________________*/
 /* MAIN */

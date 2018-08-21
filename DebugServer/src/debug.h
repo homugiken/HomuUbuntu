@@ -39,7 +39,7 @@ static uint32_t                         gverbose = DBG_VERBOSE_DFT;
 #endif
 /*························································*/
 #if DBG_ENABLE_DBGMSG && DBG_ENABLE_ALL
-#define DBGMSG(fmt,...)                 dbgmsg_printf("#%04d|%s:"fmt,__LINE__,__FUNCTION__,##__VA_ARGS__)
+#define DBGMSG(fmt,...)                 dbgmsg_clnt_printf(gctl->dbgmsg_clnt, "#%04d|%s:"fmt,__LINE__,__FUNCTION__,##__VA_ARGS__)
 #else
 #define DBGMSG(fmt,...)
 #endif
@@ -99,6 +99,7 @@ static uint32_t                         gverbose = DBG_VERBOSE_DFT;
 #define ERR_FALSE(ARG)                  CHK_FALSE(ERR_CHK,ERR,ARG)
 #define ERR_RANGE(ARG,MIN,MAX)          CHK_RANGE(ERR_CHK,ERR,ARG,MIN,MAX)
 #define ERR_ERRNO()                     ERR("errno=%d %s", errno, strerror(errno))
+#define ERR_OPTARG_INVALID()            DO(if(OPTARG_INVALID(optarg)){ERR("option --%s need argument", optlist[optindex].name); goto error;})
 /*························································*/
 #define WRN_CHK(CASE,PRT)               DO(if(CASE){PRT;})
 #define WRN_NULL(ARG)                   CHK_NULL(WRN_CHK,WRN,ARG)

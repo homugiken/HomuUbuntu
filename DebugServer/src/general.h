@@ -47,5 +47,12 @@
 #define TRY(RETRY,FUNC)                 DO(int iter=0;while(iter++<RETRY){if((ret=FUNC)==0){break;}})
 #define PAUSE()                         DO(TAG("PAUSE");while(getchar()!='g'){usleep(100000);})
 
+/*____________________________________________________________________________*/
+/* OPTION */
+/*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
+extern int                              optind;
+extern char *                           optarg;
+#define OPTARG_INVALID(ARG)             (ARG==NULL)||(ARG[0]=='-')||(strlen(ARG)<1)
+
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
 #endif /* GENERAL_H_ */
