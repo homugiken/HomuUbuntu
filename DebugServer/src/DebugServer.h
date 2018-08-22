@@ -78,6 +78,8 @@ typedef struct DBG_SVR_CTL {
 static int dbg_svr_loop_job (DBG_SVR_CTL * const ctl);
 static int dbg_svr_recv (DBG_SVR_CTL * const ctl);
 /*························································*/
+static int dbg_svr_log_delete (DBG_SVR_CTL * const ctl);
+static int dbg_svr_log_check_size (DBG_SVR_CTL * const ctl);
 static int dbg_svr_log_shift (DBG_SVR_CTL * const ctl);
 static void dbg_svr_log_flush (DBG_SVR_CTL * const ctl);
 static int dbg_svr_log_fprintf (DBG_SVR_CTL * const ctl);
@@ -98,8 +100,8 @@ static int dbg_svr_idx_open_write (DBG_SVR_CTL * const ctl);
 static int dbg_svr_idx_open_read (DBG_SVR_CTL * const ctl);
 /*························································*/
 static int dbg_svr_mkdir (DBG_SVR_CTL * const ctl);
-static void dbg_svr_closedir (DBG_SVR_CTL * const ctl);
-static int dbg_svr_opendir (DBG_SVR_CTL * const ctl);
+static void dbg_svr_dir_close (DBG_SVR_CTL * const ctl);
+static int dbg_svr_dir_open (DBG_SVR_CTL * const ctl);
 /*························································*/
 static void dbg_svr_config_show (DBG_SVR_CFG * const cfg);
 static int dbg_svr_config (DBG_SVR_CTL * const ctl, const int argc, char * const argv[]);

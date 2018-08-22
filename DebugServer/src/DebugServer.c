@@ -51,6 +51,36 @@ LERROR;
 }
 /*························································*/
 static int
+dbg_svr_log_check_size (
+    DBG_SVR_CTL * const                 ctl)
+{   ENTR();
+    int                                 ret = -1;
+    ERR_NULL(ctl);
+    ERR_FALSE(ctl->ready);
+
+    if (ctl->log_fp == NULL)
+    {
+            ret = 0;
+            GOEXIT;
+    }
+
+    fseek(ctl->log_fp, 0 , SEEK_END);
+    ctl->log_size_current = ftell(ctl->log_fp) / (1024 * 1024);
+    INF("log_size_current=%dMB", ctl->log_size_current);
+
+    if (ctl->log_size_current >= ctl->cfg->log_size)
+    {
+        ret = dbg_svr_log_shift(ctl); ERR_NZERO(ret);
+    }
+
+    ret = 0;
+LEXIT;
+    return(ret);
+LERROR;
+    GOEXIT;
+}
+/*························································*/
+static int
 dbg_svr_log_shift (
     DBG_SVR_CTL * const                 ctl)
 {   ENTR();
@@ -69,6 +99,10 @@ dbg_svr_log_shift (
     ret = dbg_svr_log_open_new(ctl); ERR_NZERO(ret);
 
     ret = dbg_svr_idx_create_increase(ctl); ERR_NZERO(ret);
+
+    /*
+    TODO    delete
+    */
 
     ret = 0;
 LEXIT;
@@ -457,7 +491,7 @@ dbg_svr_mkdir (
     ERR_NULL(ctl);
     ERR_NULL(ctl->cfg);
 
-    ret = dbg_svr_opendir(ctl); WRN_NZERO(ret);
+    ret = dbg_svr_dir_open(ctl); WRN_NZERO(ret);
     if (ret == 0)
     {
         GOEXIT;
@@ -479,7 +513,7 @@ dbg_svr_mkdir (
         }
     }
 
-    ret = dbg_svr_opendir(ctl); ERR_NZERO(ret);
+    ret = dbg_svr_dir_open(ctl); ERR_NZERO(ret);
 
     ret = 0;
 LEXIT;
@@ -489,7 +523,7 @@ LERROR;
 }
 /*························································*/
 static void
-dbg_svr_closedir (
+dbg_svr_dir_close (
     DBG_SVR_CTL * const                 ctl)
 {   ENTR();
     int                                 ret = -1;
@@ -508,7 +542,7 @@ LERROR;
 }
 /*························································*/
 static int
-dbg_svr_opendir (
+dbg_svr_dir_open (
     DBG_SVR_CTL * const                 ctl)
 {   ENTR();
     int                                 ret = -1;
@@ -522,7 +556,7 @@ dbg_svr_opendir (
     {
         if (ctl->dir != opendir(ctl->cfg->dir_path))
         {
-            dbg_svr_closedir(ctl);
+            dbg_svr_dir_close(ctl);
         }
         else
         {
@@ -671,7 +705,7 @@ dbg_svr_release (
 
     dbg_svr_log_close(ctl);
     dbg_svr_idx_close(ctl);
-    dbg_svr_closedir(ctl);
+    dbg_svr_dir_close(ctl);
 
     if (ctl->dbgmsg_svr != NULL)
     {
