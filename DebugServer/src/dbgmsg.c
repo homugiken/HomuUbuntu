@@ -39,29 +39,10 @@ dbgmsg_recv(
 
     MEMZ(msg, sizeof(DBGMSG_MSG));
     ret = msgrcv(ctl->qid, msg, (sizeof(DBGMSG_MSG) - sizeof(long)), 0, (IPC_NOWAIT | MSG_NOERROR));
-    if (ret > 1)
+    if (ret < 1)
     {
         GOEXIT;
     }
-
-    ret = 0;
-LEXIT;
-    return(ret);
-LERROR;
-    GOEXIT;
-}
-/*························································*/
-static int
-dbgmsg_set_src_name (
-    DBGMSG_CTL * const                  ctl,
-    char * const                        name)
-{   ENTR();
-    int                                 ret = -1;
-    ERR_NULL(ctl); ERR_NULL(name);
-
-    snprintf(ctl->src_name, DBGMSG_SRC_NAME_LEN, "%s", name);
-    ctl->src_name[DBGMSG_SRC_NAME_LEN - 1] = '\0';
-    LOG("src_name=\"%s\"", ctl->src_name);
 
     ret = 0;
 LEXIT;
@@ -189,17 +170,18 @@ static void
 dbgmsg_release (
     DBGMSG_CTL * const                  ctl)
 {   ENTR();
-    int                                 ret = -1;
     ERR_NULL(ctl);
 
     if (ctl->cfg != NULL)
     {
         free(ctl->cfg);
     }
+#if 0
     if (ctl->qid >= 0)
     {
-        ret = msgctl(ctl->qid, IPC_RMID, NULL); WRN_NZERO(ret);
+        int ret = msgctl(ctl->qid, IPC_RMID, NULL); WRN_NZERO(ret);
     }
+#endif
 
     MEMZ(ctl, sizeof(DBGMSG_CTL));
     ctl->qid = -1;
@@ -228,13 +210,6 @@ dbgmsg_init (
 
     ctl->qid = msgget(ctl->cfg->key, IPC_CREAT); ERR_NEG(ctl->qid);
     LOG("qid=0x%08X", ctl->qid);
-
-    ctl->src_pid = getpid(); ERR_NPOS(ctl->src_pid);
-    LOG("src_pid=%d", ctl->src_pid);
-
-    snprintf(ctl->src_name, DBGMSG_SRC_NAME_LEN, "%s", DBGMSG_SRC_NAME_DFT);
-    ctl->src_name[DBGMSG_SRC_NAME_LEN - 1] = '\0';
-    LOG("src_name=\"%s\"", ctl->src_name);
 
     ctl->ready = true;
     LOG("ready=%s", STRBOOL(ctl->ready));
@@ -300,7 +275,7 @@ dbgmsg_svr_recv (
     ctl->msg_count = 0;
     for (uint32_t i = 0; i < DBGMSG_SVR_MSG_BUF_SIZE; i++)
     {
-        ret = dbgmsg_msgrcv(ctl->dbgmsg, &(ctl->msg_buf[i]));
+        ret = dbgmsg_recv(ctl->dbgmsg, &(ctl->msg_buf[i]));
         if (ret < 1)
         {
             break;
@@ -387,23 +362,24 @@ dbgmsg_clnt_printf (
     ...)
 {
     int                                 ret = -1;
+    static DBGMSG_MSG                   _msg, * const msg = &_msg;
 
     if ((ctl == NULL) || (ctl->ready != true)) { return; }
 
-    MEMZ(ctl->msg, sizeof(DBGMSG_MSG));
-    ctl->msg->type     = DBGMSG_TYPE_DEBUG;
-    ctl->msg->src_time = time(NULL);
-    ctl->msg->src_pid  = ctl->dbgmsg->src_pid;
+    MEMZ(msg, sizeof(DBGMSG_MSG));
+    msg->type     = DBGMSG_TYPE_DEBUG;
+    msg->src_time = time(NULL);
+    msg->src_pid  = ctl->src_pid;
 
-    snprintf(ctl->msg->src_name, DBGMSG_SRC_NAME_LEN, "%s", ctl->dbgmsg->src_name);
-    ctl->msg->src_name[DBGMSG_SRC_NAME_LEN - 1] = '\0';
+    snprintf(msg->src_name, DBGMSG_SRC_NAME_LEN, "%s", ctl->src_name);
+    ctl->src_name[DBGMSG_SRC_NAME_LEN - 1] = '\0';
 
-    va_start(ctl->dbgmsg->vargs, fmt);
-    vsnprintf(ctl->msg->text, DBGSTD_TEXT_LEN, fmt, ctl->dbgmsg->vargs);
-    va_end(ctl->dbgmsg->vargs);
-    ctl->msg->text[DBGSTD_TEXT_LEN - 1] = '\0';
+    va_start(ctl->vargs, fmt);
+    vsnprintf(msg->text, DBGSTD_TEXT_LEN, fmt, ctl->vargs);
+    va_end(ctl->vargs);
+    msg->text[DBGSTD_TEXT_LEN - 1] = '\0';
 
-    ret = msgsnd(ctl->dbgmsg->qid, ctl->msg, (sizeof(DBGMSG_MSG) - sizeof(long)), IPC_NOWAIT);
+    ret = msgsnd(ctl->dbgmsg->qid, msg, (sizeof(DBGMSG_MSG) - sizeof(long)), IPC_NOWAIT);
     if (ret != 0)
     {
         DBGSTD("ERR!ret=%d!=0", ret);
@@ -417,9 +393,10 @@ dbgmsg_clnt_set_src_name (
 {   ENTR();
     int                                 ret = -1;
     ERR_NULL(ctl); ERR_NULL(name);
-    ERR_FALSE(ctl->ready):
 
-    ret = dbgmsg_set_src_name(ctl->dbgmsg, name);
+    snprintf(ctl->src_name, DBGMSG_SRC_NAME_LEN, "%s", name);
+    ctl->src_name[DBGMSG_SRC_NAME_LEN - 1] = '\0';
+    LOG("src_name=\"%s\"", ctl->src_name);
 
     ret = 0;
 LEXIT;
@@ -472,9 +449,13 @@ dbgmsg_clnt_init (
         dbgmsg_clnt_release(ctl);
     }
     ctl->dbgmsg = &(ctl->_dbgmsg);
-    ctl->msg = &(ctl->_msg);
 
     ret = dbgmsg_init(ctl->dbgmsg, argc, argv); ERR_NZERO(ret);
+
+    ctl->src_pid = getpid(); ERR_NPOS(ctl->src_pid);
+    LOG("src_pid=%d", ctl->src_pid);
+
+    ret = dbgmsg_clnt_set_src_name(ctl, DBGMSG_CLNT_SRC_NAME_DFT); ERR_NZERO(ret);
 
     ctl->ready = true;
     LOG("ready=%s", STRBOOL(ctl->ready));

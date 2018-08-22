@@ -1,4 +1,3 @@
-
 /*____________________________________________________________________________*/
 /* INCLUDE */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
@@ -7,38 +6,7 @@
 /*____________________________________________________________________________*/
 /* GLOBAL */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
-typedef struct GLOBAL_CFG {
-    // DBGMSG_CFG                          _dbgmsg, * dbgmsg;
-    DBG_SVR_CFG                         _dbg_svr, * dbg_svr;
-} GLOBAL_CFG;
-
-typedef struct GLOBAL_CTL {
-    // DBGMSG_CTL                          _dbgmsg, * dbgmsg;
-    DBG_SVR_CTL                         _dbg_svr, * dbg_svr;
-} GLOBAL_CTL;
-
-static GLOBAL_CFG                       _gcfg, * const gcfg = &_gcfg;
-static GLOBAL_CTL                       _gctl, * const gctl = &_gctl;
-
-/*____________________________________________________________________________*/
-/* OPTION */
-/*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
-static struct option                    optlist[] =
-{
-    /* GLOBAL */
-    {GOPTL_HELP,                        no_argument,        0,                  GOPTC_HELP},
-    {GOPTL_VERBOSE,                     required_argument,  0,                  GOPTC_VERBOSE},
-    /* DBG_SVR */
-    {DBG_SVR_OPTL_LOG_PATH,             required_argument,  0,                  DBG_SVR_OPTC_LOG_PATH},
-    {DBG_SVR_OPTL_LOG_SIZE,             required_argument,  0,                  DBG_SVR_OPTC_LOG_SIZE},
-    {DBG_SVR_OPTL_LOG_COUNT,            required_argument,  0,                  DBG_SVR_OPTC_LOG_COUNT},
-    {DBG_SVR_OPTL_DBGMSG_SVR,           no_argument,        0,                  DBG_SVR_OPTC_DBGMSG_SVR},
-    {0, 0, 0, 0}
-};
-
-/*____________________________________________________________________________*/
-/* DBGMSG_SVR */
-/*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
+static DBG_SVR_CTL                      _gdbg_svr, * const gdbg_svr = &(_gdbg_svr);
 
 /*____________________________________________________________________________*/
 /* DBG_SVR */
@@ -49,8 +17,9 @@ dbg_svr_loop_job (
 {   ENTR();
     int                                 ret = -1;
     ERR_NULL(ctl);
+    ERR_FALSE(ctl->ready);
 
-    ret = dbg_svr_rcv(ctl); WRN_NZERO(ret);
+    ret = dbg_svr_recv(ctl); WRN_NZERO(ret);
 
     ret = dbg_svr_log_fprintf(ctl); WRN_NZERO(ret);
 
@@ -60,25 +29,18 @@ LEXIT;
 LERROR;
     GOEXIT;
 }
-
+/*························································*/
 static int
-dbg_svr_rcv (
+dbg_svr_recv (
     DBG_SVR_CTL * const                 ctl)
 {   ENTR();
     int                                 ret = -1;
     ERR_NULL(ctl);
+    ERR_FALSE(ctl->ready);
 
-    if (ctl->cfg->dbgmsg_svr_enable == true)
+    if ((ctl->cfg->dbgmsg_svr_enable == true) && (ctl->dbgmsg_svr->ready == true))
     {
-        WRN_NULL(ctl->dbgmsg_svr);
-        if (ctl->dbgmsg_svr != NULL)
-        {
-            WRN_FALSE(ctl->dbgmsg_svr->ready);
-            if (ctl->dbgmsg_svr->ready == true)
-            {
-                ret = dbgmsg_svr_rcv(ctl->dbgmsg_svr); WRN_NZERO(ret);
-            }
-        }
+        ret = dbgmsg_svr_recv(ctl->dbgmsg_svr); WRN_NZERO(ret);
     }
 
     ret = 0;
@@ -87,7 +49,7 @@ LEXIT;
 LERROR;
     GOEXIT;
 }
-
+/*························································*/
 static int
 dbg_svr_log_shift (
     DBG_SVR_CTL * const                 ctl)
@@ -104,8 +66,8 @@ dbg_svr_log_shift (
         dbg_svr_log_close(ctl);
     }
 
-    ret = dbg_svr_log_name_new(ctl); ERR_NZERO(ret);
-    ret = dbg_svr_log_open(ctl); ERR_NZERO(ret);
+    ret = dbg_svr_log_open_new(ctl); ERR_NZERO(ret);
+
     ret = dbg_svr_idx_create_increase(ctl); ERR_NZERO(ret);
 
     ret = 0;
@@ -114,30 +76,18 @@ LEXIT;
 LERROR;
     GOEXIT;
 }
-
+/*························································*/
 static int
 dbg_svr_log_fprintf (
     DBG_SVR_CTL * const                 ctl)
 {   ENTR();
     int                                 ret = -1;
     ERR_NULL(ctl);
+    ERR_FALSE(ctl->ready); ERR_NULL(ctl->log_fp);
 
-    if (ctl->log_fp == NULL)
+    if ((ctl->cfg->dbgmsg_svr_enable == true) && (ctl->dbgmsg_svr->ready == true))
     {
-        ret = dbg_svr_log_open(ctl); ERR_NZERO(ret);
-    }
-
-    if (ctl->cfg->dbgmsg_svr_enable)
-    {
-        WRN_NULL(ctl->dbgmsg_svr);
-        if (ctl->dbgmsg_svr != NULL)
-        {
-            WRN_FALSE(ctl->dbgmsg_svr->ready);
-            if (ctl->dbgmsg_svr->ready == true)
-            {
-                ret = dbgmsg_svr_fprintf(ctl->dbgmsg_svr, ctl->log_fp); WRN_NZERO(ret);
-            }
-        }
+        ret = dbgmsg_svr_fprintf(ctl->dbgmsg_svr, ctl->log_fp); WRN_NZERO(ret);
     }
 
     ret = 0;
@@ -146,21 +96,22 @@ LEXIT;
 LERROR;
     GOEXIT;
 }
-
+/*························································*/
 static int
 dbg_svr_log_write_trailer (
     DBG_SVR_CTL * const                 ctl)
 {   ENTR();
     int                                 ret = -1;
-    ERR_NULL(ctl); ERR_NULL(ctl->log_fp);
+    ERR_NULL(ctl);
+    ERR_NULL(ctl->log_fp);
 
     ctl->time_now = time(NULL);
     ctl->time_local = localtime(&(ctl->time_now));
-    ret = fprintf(ctl->log_fp, "[TIME|END=%04d/%02d/%02d-%02d:%02d:%02d]\r\n",
+    ret = fprintf(ctl->log_fp, DBG_SVR_LOG_TRAILER_TIME_FMT,
                   ctl->LOCAL_YEAR, ctl->LOCAL_MON, ctl->LOCAL_DAY,
                   ctl->LOCAL_HOUR, ctl->LOCAL_MIN, ctl->LOCAL_SEC); WRN_NPOS(ret);
 
-    ret = fflush(ctl->log_fp); WRN_NZERO(ret);
+    dbg_svr_log_flush(ctl);
 
     ret = 0;
 LEXIT;
@@ -168,7 +119,7 @@ LEXIT;
 LERROR;
     GOEXIT;
 }
-
+/*························································*/
 static int
 dbg_svr_log_write_header (
     DBG_SVR_CTL * const                 ctl)
@@ -182,16 +133,17 @@ dbg_svr_log_write_header (
         ret = dbg_svr_log_open(ctl); ERR_NZERO(ret);
     }
 
+    ret = fprintf(ctl->log_fp, "[DBG_SVR|COMPILE_TIME=%s-%s]\r\n", __DATE__, __TIME__); WRN_NPOS(ret);
     ret = fprintf(ctl->log_fp, "[LOG|PATH=%s|NAME=%s]\r\n", ctl->cfg->dir_path, ctl->log_name); WRN_NPOS(ret);
-    ret = fprintf(ctl->log_fp, DBG_SVR_IDX_FMT"\r\n", ctl->idx_create, ctl->idx_delete); WRN_NPOS(ret);
+    ret = fprintf(ctl->log_fp, DBG_SVR_IDX_FMT, ctl->idx_create, ctl->idx_delete); WRN_NPOS(ret);
 
     ctl->time_now = time(NULL);
     ctl->time_local = localtime(&(ctl->time_now));
-    ret = fprintf(ctl->log_fp, "[TIME|START=%04d/%02d/%02d-%02d:%02d:%02d]\r\n",
+    ret = fprintf(ctl->log_fp, DBG_SVR_LOG_HEADER_TIME_FMT,
                   ctl->LOCAL_YEAR, ctl->LOCAL_MON, ctl->LOCAL_DAY,
                   ctl->LOCAL_HOUR, ctl->LOCAL_MIN, ctl->LOCAL_SEC); WRN_NPOS(ret);
 
-    ret = fflush(ctl->log_fp); WRN_NZERO(ret);
+    dbg_svr_log_flush(ctl);
 
     ret = 0;
 LEXIT;
@@ -199,7 +151,27 @@ LEXIT;
 LERROR;
     GOEXIT;
 }
+/*························································*/
+static int
+dbg_svr_log_open_new (
+    DBG_SVR_CTL * const                 ctl)
+{   ENTR();
+    int                                 ret = -1;
+    ERR_NULL(ctl);
 
+    ret = dbg_svr_log_name_new(ctl); ERR_NZERO(ret);
+
+    ret = dbg_svr_log_open(ctl); ERR_NZERO(ret);
+
+    ret = dbg_svr_log_write_header(ctl); ERR_NZERO(ret);
+
+    ret = 0;
+LEXIT;
+    return(ret);
+LERROR;
+    GOEXIT;
+}
+/*························································*/
 static int
 dbg_svr_log_name_new (
     DBG_SVR_CTL * const                 ctl)
@@ -221,7 +193,7 @@ LEXIT;
 LERROR;
     GOEXIT;
 }
-
+/*························································*/
 static void
 dbg_svr_log_flush (
     DBG_SVR_CTL *                       const ctl)
@@ -237,7 +209,7 @@ LEXIT;
 LERROR;
     GOEXIT;
 }
-
+/*························································*/
 static void
 dbg_svr_log_close (
     DBG_SVR_CTL * const                 ctl)
@@ -247,9 +219,10 @@ dbg_svr_log_close (
 
     if (ctl->log_fp != NULL)
     {
+        dbg_svr_log_flush(ctl);
+
         ret = dbg_svr_log_write_trailer(ctl); WRN_NZERO(ret);
 
-        ret = fflush(ctl->log_fp); WRN_NZERO(ret);
         fclose(ctl->log_fp);
         ctl->log_fp = NULL;
         LOG("close=\"%s\"", ctl->log_path_name);
@@ -260,20 +233,15 @@ LEXIT;
 LERROR;
     GOEXIT;
 }
-
+/*························································*/
 static int
 dbg_svr_log_open (
     DBG_SVR_CTL * const                 ctl)
 {   ENTR();
     int                                 ret = -1;
     ERR_NULL(ctl);
-    ERR_NPOS(strlen(ctl->cfg->dir_path));
-    ERR_NPOS(strlen(ctl->log_name));
+    ERR_NULL(ctl->dir);
 
-    if (ctl->dir == NULL)
-    {
-        ret = dbg_svr_mkdir(ctl); ERR_NZERO(ret);
-    }
     if (ctl->log_fp != NULL)
     {
         dbg_svr_log_close(ctl);
@@ -286,8 +254,6 @@ dbg_svr_log_open (
     snprintf(ctl->log_path_name, DBG_SVR_LOG_PATH_NAME_LEN, "%s/%s", ctl->cfg->dir_path, ctl->log_name);
     ctl->log_fp = fopen(ctl->log_path_name, "w+"); ERR_NULL(ctl->log_fp);
     LOG("open=\"%s\"", ctl->log_path_name);
-
-    ret = dbg_svr_log_write_header(ctl); ERR_NZERO(ret);
 
     ret = 0;
 LEXIT;
@@ -321,7 +287,7 @@ LEXIT;
 LERROR;
     GOEXIT;
 }
-
+/*························································*/
 static int
 dbg_svr_idx_create_increase (
     DBG_SVR_CTL * const                 ctl)
@@ -347,7 +313,7 @@ LEXIT;
 LERROR;
     GOEXIT;
 }
-
+/*························································*/
 static int
 dbg_svr_idx_write (
     DBG_SVR_CTL * const                 ctl)
@@ -358,7 +324,7 @@ dbg_svr_idx_write (
 
     ret = dbg_svr_idx_open_write(ctl); ERR_NZERO(ret);
 
-    ret = fprintf(ctl->idx_fp, DBG_SVR_IDX_FMT"\r\n", ctl->idx_create, ctl->idx_delete); ERR_NPOS(ret);
+    ret = fprintf(ctl->idx_fp, DBG_SVR_IDX_FMT, ctl->idx_create, ctl->idx_delete); ERR_NPOS(ret);
     INF("idx_create=%04u idx_delete=%04u", ctl->idx_create, ctl->idx_delete);
 
     dbg_svr_idx_close(ctl);
@@ -369,7 +335,7 @@ LEXIT;
 LERROR;
     GOEXIT;
 }
-
+/*························································*/
 static int
 dbg_svr_idx_read (
     DBG_SVR_CTL * const                 ctl)
@@ -384,8 +350,9 @@ dbg_svr_idx_read (
         ctl->idx_create = DBG_SVR_IDX_MIN;
         ctl->idx_delete = DBG_SVR_IDX_MIN;
         ret = dbg_svr_idx_write(ctl); ERR_NZERO(ret);
+        ret = 0;
+        GOEXIT;
     }
-    ret = dbg_svr_idx_open_read(ctl); ERR_NZERO(ret);
 
     ret = fscanf(ctl->idx_fp, DBG_SVR_IDX_FMT, &(ctl->idx_create), &(ctl->idx_delete)); WRN_NPOS(ret);
     if (ret < 1)
@@ -407,7 +374,7 @@ LEXIT;
 LERROR;
     GOEXIT;
 }
-
+/*························································*/
 static void
 dbg_svr_idx_close (
     DBG_SVR_CTL * const                 ctl)
@@ -429,7 +396,7 @@ LEXIT;
 LERROR;
     GOEXIT;
 }
-
+/*························································*/
 static int
 dbg_svr_idx_open_write (
     DBG_SVR_CTL * const                 ctl)
@@ -454,7 +421,7 @@ LEXIT;
 LERROR;
     GOEXIT;
 }
-
+/*························································*/
 static int
 dbg_svr_idx_open_read (
     DBG_SVR_CTL * const                 ctl)
@@ -520,7 +487,7 @@ LEXIT;
 LERROR;
     GOEXIT;
 }
-
+/*························································*/
 static void
 dbg_svr_closedir (
     DBG_SVR_CTL * const                 ctl)
@@ -539,7 +506,7 @@ LEXIT;
 LERROR;
     GOEXIT;
 }
-
+/*························································*/
 static int
 dbg_svr_opendir (
     DBG_SVR_CTL * const                 ctl)
@@ -598,9 +565,17 @@ dbg_svr_config (
     char * const                        argv[])
 {   ENTR();
     int                                 ret = -1;
+    DBG_SVR_CFG *                       cfg = NULL;
     int                                 optchar;
     int                                 optindex;
-    DBG_SVR_CFG *                       cfg = NULL;
+    struct option                       optlist[] =
+    {
+        {DBG_SVR_OPTL_LOG_PATH,         required_argument,  0, DBG_SVR_OPTC_LOG_PATH},
+        {DBG_SVR_OPTL_LOG_SIZE,         required_argument,  0, DBG_SVR_OPTC_LOG_SIZE},
+        {DBG_SVR_OPTL_LOG_COUNT,        required_argument,  0, DBG_SVR_OPTC_LOG_COUNT},
+        {DBG_SVR_OPTL_DBGMSG_SVR,       no_argument,        0, DBG_SVR_OPTC_DBGMSG_SVR},
+        {0, 0, 0, 0}
+    };
     ERR_NULL(cfg); ERR_NPOS(argc); ERR_NULL(argv);
 
     if (ctl->cfg == NULL)
@@ -665,11 +640,6 @@ dbg_svr_config (
     }
     ERR_RANGE(cfg->log_count, DBG_SVR_LOG_COUNT_MIN, DBG_SVR_LOG_COUNT_MAX);
 
-    if (cfg->dbgmsg_svr_enable == true)
-    {
-        ret = dbgmsg_svr_cfg(ctl->dbgmsg_svr, argc, argv); ERR_NZERO(ret);
-    }
-
     ret = 0;
 LEXIT;
     return(ret);
@@ -677,7 +647,7 @@ LERROR;
     GOEXIT;
 }
 /*························································*/
-static void
+void
 dbg_svr_help (void)
 {   ENTR();
 
@@ -716,7 +686,7 @@ LERROR;
     GOEXIT;
 }
 /*························································*/
-static int
+int
 dbg_svr_init (
     DBG_SVR_CTL * const                 ctl,
     const int                           argc,
@@ -730,17 +700,20 @@ dbg_svr_init (
         dbg_svr_release(ctl);
     }
     ret = dbg_svr_config(ctl, argc, argv); ERR_NZERO(ret);
-    dbg_svr_config_show(ctl);
+    dbg_svr_config_show(ctl->cfg);
 
     ret = dbg_svr_mkdir(ctl); ERR_NZERO(ret);
     ret = dbg_svr_idx_read(ctl); ERR_NZERO(ret);
     ret = dbg_svr_log_shift(ctl); ERR_NZERO(ret);
 
-    if (cfg->dbgmsg_svr_enable == true)
+    if (ctl->cfg->dbgmsg_svr_enable == true)
     {
         ctl->dbgmsg_svr = &(ctl->_dbgmsg_svr);
         ret = dbgmsg_svr_init(ctl->dbgmsg_svr, argc, argv); ERR_NZERO(ret);
     }
+
+    ctl->ready = true;
+    LOG("ready=%s", STRBOOL(ctl->ready));
 
     ret = 0;
 LEXIT;
@@ -757,15 +730,13 @@ static int
 main_loop (void)
 {   ENTR();
     int                                 ret = -1;
-    ERR_NULL(gctl); ERR_NULL(gcfg);
+    ERR_NZERO(gdbg_svr);
 
     while (1)
     {
-        ERR_NULL(gctl->dbg_svr);
-        WRN_FALSE(gctl->dbg_svr->ready);
-        if (gctl->dbg_svr->ready == true)
+        if (gdbg_svr->ready == true)
         {
-            ret = dbg_svr_loop_job(gctl->dbg_svr); WRN_NZERO(ret);
+            ret = dbg_svr_loop_job(gdbg_svr); WRN_NZERO(ret);
         }
     }
 
@@ -775,36 +746,36 @@ LEXIT;
 LERROR;
     GOEXIT;
 }
-
+/*························································*/
 static void
-main_cfg_show (void)
+main_config_show (void)
 {   ENTR();
 
     LOG("gverbose=%d", gverbose);
 
-    dbg_svr_cfg_show(gcfg->dbg_svr);
-
 LEXIT;
     return;
 }
-
+/*························································*/
 static int
-main_cfg (
+main_config (
     const int                           argc,
     char * const                        argv[])
 {   ENTR();
     int                                 ret = -1;
     int                                 optchar;
     int                                 optindex;
-
+    struct option                       optlist[] =
+    {
+        {MAIN_OPTL_HELP,                no_argument,        0, MAIN_OPTC_HELP},
+        {MAIN_OPTL_VERBOSE,             required_argument,  0, MAIN_OPTC_VERBOSE},
+        {0, 0, 0, 0}
+    };
     ERR_NPOS(argc); ERR_NULL(argv);
 
-    if (argc < 2)
-    {
-        GOERROR;
-    }
-
+    if (argc < 2) { GOERROR; }
     LOG("argc=%d", argc);
+
     for (int i = 1; i < argc; i++)
     {
         LOG("argv[%d]=\"%s\"", i, argv[i]);
@@ -818,11 +789,11 @@ main_cfg (
 
         switch (optchar)
         {
-        case GOPTC_HELP:
+        case MAIN_OPTC_HELP:
             main_help(argv[0]);
             main_exit(0);
             break;
-        case GOPTC_VERBOSE:
+        case MAIN_OPTC_VERBOSE:
             ERR_OPTARG_INVALID();
             gverbose = strtoul(optarg, NULL, 0);
             INF("gverbose=%u", gverbose);
@@ -837,12 +808,6 @@ main_cfg (
         gverbose = DBG_SVR_VERBOSE_DFT;
         INF("gverbose=%u", gverbose);
     }
-    ERR_RANGE(gverbose, DBG_SVR_VERBOSE_MIN, DBG_SVR_VERBOSE_MAX);
-
-    gcfg->dbg_svr = &(gcfg->_dbg_svr); ERR_NULL(gcfg->dbg_svr);
-    gcfg->dbgmsg = &(gcfg->_dbgmsg); ERR_NULL(gcfg->dbgmsg);
-
-    ret = dbg_svr_cfg(gcfg->dbg_svr, argc, argv); ERR_NZERO(ret);
 
     ret = 0;
 LEXIT;
@@ -850,18 +815,20 @@ LEXIT;
 LERROR;
     GOEXIT;
 }
-
+/*························································*/
 static void
 main_help (
     char * const                        name)
 {   ENTR();
-
     ERR_NULL(name);
 
     printf("%s options:\r\n", name);
-    printf("-%c/--%s\t%s\r\n", GOPTC_HELP, GOPTL_HELP, GOPTS_HELP);
-    printf("-%c/--%s\t%s <%d,%d>\r\n", GOPTC_VERBOSE, GOPTL_VERBOSE, GOPTS_VERBOSE, DBG_VERBOSE_MIN, DBG_VERBOSE_MAX);
+    printf("-%c/--%s\t%s\r\n", MAIN_OPTC_HELP, MAIN_OPTL_HELP, MAIN_OPTS_HELP);
+    printf("-%c/--%s\t%s <%d,%d>\r\n",
+           MAIN_OPTC_VERBOSE, MAIN_OPTL_VERBOSE, MAIN_OPTS_VERBOSE,
+           DBG_VERBOSE_MIN, DBG_VERBOSE_MAX);
 
+    dbg_clnt_help();
     dbg_svr_help();
 
 LEXIT;
@@ -869,7 +836,7 @@ LEXIT;
 LERROR;
     GOEXIT;
 }
-
+/*························································*/
 static void
 main_exit (
     int                                 ret)
@@ -877,26 +844,32 @@ main_exit (
 
     LOG("ret=%d", ret);
 
-    if (gctl->dbg_svr != NULL)
+    if (gdbg_svr != NULL)
     {
-        dbg_svr_release(gctl->dbg_svr);
+        dbg_svr_release(gdbg_svr);
     }
-
-    MEMZ(gcfg, sizeof(GLOBAL_CFG));
-    MEMZ(gctl, sizeof(GLOBAL_CTL));
+    if (gdbg_clnt != NULL)
+    {
+        dbg_clnt_release(gdbg_clnt);
+    }
 
 LEXIT;
     exit(ret);
 }
+/*························································*/
 static int
-main_init (void)
+main_init (
+    const int                           argc,
+    char * const                        argv[])
 {   ENTR();
     int                                 ret = -1;
+    ERR_NPOS(argc); ERR_NULL(argv);
 
-    gctl->dbg_svr = &(gctl->_dbg_svr); ERR_NULL(gctl->dbg_svr);
-    gctl->dbgmsg = &(gctl->_dbgmsg); ERR_NULL(gctl->dbgmsg);
+    ret = main_config(argc, argv); ERR_NZERO(ret);
+    main_config_show();
 
-    ret = dbg_svr_init(gctl->dbg_svr, gcfg->dbg_svr); ERR_NZERO(ret);
+    ERR_NULL(gdbg_svr);
+    ret = dbg_svr_init(gdbg_svr, argc, argv); ERR_NZERO(ret);
 
     ret = 0;
 LEXIT;
@@ -904,18 +877,14 @@ LEXIT;
 LERROR;
     GOEXIT;
 }
-
+/*························································*/
 int
 main (
     const int                           argc,
     char * const                        argv[])
 {   ENTR();
     int                                 ret = -1;
-
     ERR_NPOS(argc); ERR_NULL(argv);
-
-    MEMZ(gcfg, sizeof(GLOBAL_CFG));
-    MEMZ(gctl, sizeof(GLOBAL_CTL));
 
     if (argc < 2)
     {
@@ -923,10 +892,13 @@ main (
         main_exit(0);
     }
 
-    ret = main_cfg(argc, argv);
-    main_cfg_show();
+    ERR_NULL(gdbg_clnt);
+    MEMZ(gdbg_clnt, sizeof(DBG_CLNT_CTL));
+    ret = dbg_clnt_init(gdbg_clnt, argc, argv); ERR_NZERO(ret);
+    ret = dbg_clnt_set_src_name(gdbg_clnt, "DBG_SVR"); WRN_NZERO(ret);
 
-    ret = main_init(); ERR_NZERO(ret);
+    ret = main_init(argc, argv); ERR_NZERO(ret);
+
     ret = main_loop(); ERR_NZERO(ret);
 
     ret = 0;
@@ -938,7 +910,3 @@ LERROR;
 }
 
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
-
-    // ctl->pid = getpid();
-    // ctl->ppid = getppid();
-    // LOG("pid=%d ppid=%d", ctl->pid, ctl->ppid);

@@ -7,13 +7,13 @@
 #include "dbgstd.h"
 #include "dbgmsg.h"
 #include "DebugServer.h"
+#include "DebugClient.h"
 
 /*____________________________________________________________________________*/
 /* DEBUG */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
 #define DBG_ENABLE_ALL                  1   /* ALL */
 #define DBG_ENABLE_DBGSTD               1   /* DBGSTD */
-#define DBG_ENABLE_DBGMSG               0   /* DBGMSG */
 /*························································*/
 #define DBG_ENABLE_ERR                  1   /* ERR */
 #define DBG_ENABLE_WRN                  1   /* WRN */
@@ -29,8 +29,9 @@
 #define DBG_VERBOSE_MIN                 DBG_VERBOSE_ERR
 #define DBG_VERBOSE_MAX                 DBG_VERBOSE_TAG
 /*························································*/
-#define DBG_VERBOSE_DFT                 DBG_VERBOSE_INF
+#define DBG_VERBOSE_DFT                 DBG_VERBOSE_LOG
 static uint32_t                         gverbose = DBG_VERBOSE_DFT;
+static DBG_CLNT_CTL                     _gdbg_clnt, * const gdbg_clnt = &(_gdbg_clnt);
 /*························································*/
 #if DBG_ENABLE_DBGSTD && DBG_ENABLE_ALL
 #define DBGSTD(fmt,...)                 dbgstd_printf("#%04d|%s:"fmt,__LINE__,__FUNCTION__,##__VA_ARGS__)
@@ -38,14 +39,8 @@ static uint32_t                         gverbose = DBG_VERBOSE_DFT;
 #define DBGSTD(fmt,...)
 #endif
 /*························································*/
-#if DBG_ENABLE_DBGMSG && DBG_ENABLE_ALL
-#define DBGMSG(fmt,...)                 dbgmsg_clnt_printf(gctl->dbgmsg_clnt, "#%04d|%s:"fmt,__LINE__,__FUNCTION__,##__VA_ARGS__)
-#else
-#define DBGMSG(fmt,...)
-#endif
-/*························································*/
 #if DBG_ENABLE_ALL                      /* DBG */
-#define DBG(fmt,...)                    DO(DBGSTD(fmt,##__VA_ARGS__);DBGMSG(fmt,##__VA_ARGS__);)
+#define DBG(fmt,...)                    DO(DBGSTD(fmt,##__VA_ARGS__);dbg_clnt_printf(gdbg_clnt, "#%04d|%s:"fmt,__LINE__,__FUNCTION__,##__VA_ARGS__);)
 #else
 #define DBG(fmt,...)
 #endif

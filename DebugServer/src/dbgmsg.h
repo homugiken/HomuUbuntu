@@ -19,7 +19,6 @@
 #define DBGMSG_TYPE_DEBUG               0x01
 /*························································*/
 #define DBGMSG_SRC_NAME_LEN             32
-#define DBGMSG_SRC_NAME_DFT             "UNKNOWN"
 /*························································*/
 #define DBGMSG_TEXT_LEN                 1024
 /*························································*/
@@ -50,14 +49,10 @@ typedef struct DBGMSG_CTL {
     bool                                ready;
     DBGMSG_CFG *                        cfg;
     int                                 qid;
-    va_list                             vargs;
-    pid_t                               src_pid;
-    char                                src_name[DBGMSG_SRC_NAME_LEN];
 } DBGMSG_CTL;
 /*························································*/
 static int dbgmsg_fprintf (FILE * const fp, DBGMSG_MSG * const msg);
 static int dbgmsg_recv (DBGMSG_CTL * const ctl, DBGMSG_MSG * const msg);
-static int dbgmsg_set_src_name (DBGMSG_CTL * const ctl, char * const name);
 static void dbgmsg_config_show (DBGMSG_CFG * const cfg);
 static int dbgmsg_config (DBGMSG_CTL * const ctl, const int argc, char * const argv[]);
 static void dbgmsg_help (void);
@@ -85,13 +80,17 @@ int dbgmsg_svr_init (DBGMSG_SVR_CTL * const ctl, const int argc, char * const ar
 /*____________________________________________________________________________*/
 /* DBGMSG_SVR */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
+#define DBGMSG_CLNT_SRC_NAME_DFT        "DBG_CLNT"
+/*························································*/
 typedef struct DBGMSG_CLNT_CTL {
     bool                                ready;
+    va_list                             vargs;
     DBGMSG_CTL                          _dbgmsg, * dbgmsg;
-    DBGMSG_MSG                          _msg, * msg;
+    pid_t                               src_pid;
+    char                                src_name[DBGMSG_SRC_NAME_LEN];
 } DBGMSG_CLNT_CTL;
 /*························································*/
-void dbgmsg_printf (DBGMSG_CLNT_CTL * const ctl, const char * fmt, ...);
+void dbgmsg_clnt_printf (DBGMSG_CLNT_CTL * const ctl, const char * fmt, ...);
 int dbgmsg_clnt_set_src_name (DBGMSG_CLNT_CTL * const ctl, char * const name);
 void dbgmsg_clnt_help (void);
 void dbgmsg_clnt_release (DBGMSG_CLNT_CTL * const ctl);
