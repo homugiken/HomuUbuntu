@@ -9,6 +9,218 @@
 static DBG_SVR_CTL                      _gdbg_svr, * const gdbg_svr = &(_gdbg_svr);
 
 /*____________________________________________________________________________*/
+/* DBG_SVR_IDX */
+/*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
+static int
+dbg_svr_idx_increase_remove (
+    DBG_SVR_IDX * const                 idx)
+{   ENTR();
+    int                                 ret = -1;
+    ERR_NULL(idx);
+
+    if (idx->remove >= DBG_SVR_IDX_MAX)
+    {
+        idx->remove = 0;
+    }
+    else
+    {
+        idx->remove++;
+    }
+    INF("remove=%04u", idx->remove);
+
+    ret = dbg_svr_idx_write(idx); ERR_NZERO(ret);
+
+    ret = 0;
+LEXIT;
+    return(ret);
+LERROR;
+    GOEXIT;
+}
+/*························································*/
+static int
+dbg_svr_idx_increase_create (
+    DBG_SVR_IDX * const                 idx)
+{   ENTR();
+    int                                 ret = -1;
+    ERR_NULL(idx);
+
+    if (idx->create >= DBG_SVR_IDX_MAX)
+    {
+        idx->create = 0;
+    }
+    else
+    {
+        idx->create++;
+    }
+    INF("create=%04u", idx->create);
+
+    ret = dbg_svr_idx_write(idx); ERR_NZERO(ret);
+
+    ret = 0;
+LEXIT;
+    return(ret);
+LERROR;
+    GOEXIT;
+}
+/*························································*/
+static int
+dbg_svr_idx_write (
+    DBG_SVR_IDX * const                 idx)
+{   ENTR();
+    int                                 ret = -1;
+    ERR_NULL(idx);
+
+    ret = dbg_svr_idx_open_write(idx); ERR_NZERO(ret);
+
+    ret = fprintf(idx->fp, DBG_SVR_IDX_FMT, idx->create, idx->remove); ERR_NPOS(ret);
+    LOG("create=%04u remove=%04u", idx->create, idx->remove);
+
+    dbg_svr_idx_close(idx);
+
+    ret = 0;
+LEXIT;
+    return(ret);
+LERROR;
+    GOEXIT;
+}
+/*························································*/
+static int
+dbg_svr_idx_read (
+    DBG_SVR_IDX * const                 idx)
+{   ENTR();
+    int                                 ret = -1;
+    ERR_NULL(idx);
+    ERR_NPOS(strlen(idx->path_name));
+
+    ret = dbg_svr_idx_open_read(idx); ERR_NZERO(ret);
+
+    ret = fscanf(idx->fp, DBG_SVR_IDX_FMT, &(idx->create), &(idx->remove)); ERR_NPOS(ret);
+    LOG("create=%04u remove=%04u", idx->create, idx->remove);
+
+    dbg_svr_idx_close(idx);
+
+    ret = 0;
+LEXIT;
+    return(ret);
+LERROR;
+    GOEXIT;
+}
+/*························································*/
+static void
+dbg_svr_idx_close (
+    DBG_SVR_IDX * const                 idx)
+{   ENTR();
+    ERR_NULL(idx);
+
+    if(idx->fp == NULL) { return; }
+
+    fflush(idx->fp);
+    fclose(idx->fp);
+    idx->fp = NULL;
+
+LEXIT;
+    return;
+LERROR;
+    GOEXIT;
+}
+/*························································*/
+static int
+dbg_svr_idx_open_write (
+    DBG_SVR_IDX * const                 idx)
+{   ENTR();
+    int                                 ret = -1;
+    ERR_NULL(idx);
+    ERR_NPOS(strlen(idx->path_name));
+
+    if (idx->fp != NULL)
+    {
+        dbg_svr_idx_close(idx);
+    }
+
+    idx->fp = fopen(idx->path_name, "w+"); ERR_NULL(idx->fp);
+    rewind(idx->fp);
+    INF("open=\"%s\"", idx->path_name);
+
+    ret = 0;
+LEXIT;
+    return(ret);
+LERROR;
+    GOEXIT;
+}
+/*························································*/
+static int
+dbg_svr_idx_open_read (
+    DBG_SVR_IDX * const                 idx)
+{   ENTR();
+    int                                 ret = -1;
+    ERR_NULL(idx);
+    ERR_NPOS(strlen(idx->path_name));
+
+    if (idx->fp != NULL)
+    {
+        dbg_svr_idx_close(idx);
+    }
+
+    idx->fp = fopen(idx->path_name, "r"); ERR_NULL(idx->fp);
+    rewind(idx->fp);
+    INF("open=\"%s\"", idx->path_name);
+
+    ret = 0;
+LEXIT;
+    return(ret);
+LERROR;
+    GOEXIT;
+}
+/*························································*/
+static void
+dbg_svr_idx_release (
+    DBG_SVR_IDX * const                 idx)
+{   ENTR();
+    ERR_NULL(idx);
+
+    if (idx->fp != NULL)
+    {
+        dbg_svr_idx_close(idx);
+    }
+
+    MEMZ(idx, sizeof(DBG_SVR_IDX));
+
+LEXIT;
+    return;
+LERROR;
+    GOEXIT;
+}
+/*························································*/
+static int
+dbg_svr_idx_init (
+    DBG_SVR_IDX * const                 idx,
+    char * const                        path)
+{   ENTR();
+    int                                 ret = -1;
+    ERR_NULL(idx); ERR_NULL(path); ERR_NPOS(strlen(path));
+
+    snprintf(idx->path_name, DBG_SVR_IDX_PATH_NAME_LEN, "%s/%s", path, DBG_SVR_IDX_NAME_DFT);
+
+    ret = dbg_svr_idx_read(idx); WRN_NZERO(ret);
+    if (ret != 0)
+    {
+        idx->create = DBG_SVR_IDX_MIN;
+        idx->remove = DBG_SVR_IDX_MIN;
+        ret = dbg_svr_idx_write(idx); ERR_NZERO(ret);
+    }
+
+    ret = dbg_svr_idx_read(idx); ERR_NZERO(ret);
+
+    ret = 0;
+LEXIT;
+    return(ret);
+LERROR;
+    GOEXIT;
+}
+
+
+
+/*____________________________________________________________________________*/
 /* DBG_SVR */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
 static int
@@ -297,190 +509,7 @@ LERROR;
     GOEXIT;
 }
 /*························································*/
-static int
-dbg_svr_idx_delete_increase (
-    DBG_SVR_CTL * const                 ctl)
-{   ENTR();
-    int                                 ret = -1;
-    ERR_NULL(ctl);
 
-    if (ctl->idx_delete >= DBG_SVR_IDX_MAX)
-    {
-        ctl->idx_delete = 0;
-    }
-    else
-    {
-        ctl->idx_delete++;
-    }
-    INF("idx_delete=%04u", ctl->idx_delete);
-
-    ret = dbg_svr_idx_write(ctl); ERR_NZERO(ret);
-
-    ret = 0;
-LEXIT;
-    return(ret);
-LERROR;
-    GOEXIT;
-}
-/*························································*/
-static int
-dbg_svr_idx_create_increase (
-    DBG_SVR_CTL * const                 ctl)
-{   ENTR();
-    int                                 ret = -1;
-    ERR_NULL(ctl);
-
-    if (ctl->idx_create >= DBG_SVR_IDX_MAX)
-    {
-        ctl->idx_create = 0;
-    }
-    else
-    {
-        ctl->idx_create++;
-    }
-    INF("idx_create=%04u", ctl->idx_create);
-
-    ret = dbg_svr_idx_write(ctl); ERR_NZERO(ret);
-
-    ret = 0;
-LEXIT;
-    return(ret);
-LERROR;
-    GOEXIT;
-}
-/*························································*/
-static int
-dbg_svr_idx_write (
-    DBG_SVR_CTL * const                 ctl)
-{   ENTR();
-    int                                 ret = -1;
-    ERR_NULL(ctl);
-    ERR_NULL(ctl->cfg);
-
-    ret = dbg_svr_idx_open_write(ctl); ERR_NZERO(ret);
-
-    ret = fprintf(ctl->idx_fp, DBG_SVR_IDX_FMT, ctl->idx_create, ctl->idx_delete); ERR_NPOS(ret);
-    INF("idx_create=%04u idx_delete=%04u", ctl->idx_create, ctl->idx_delete);
-
-    dbg_svr_idx_close(ctl);
-
-    ret = 0;
-LEXIT;
-    return(ret);
-LERROR;
-    GOEXIT;
-}
-/*························································*/
-static int
-dbg_svr_idx_read (
-    DBG_SVR_CTL * const                 ctl)
-{   ENTR();
-    int                                 ret = -1;
-    ERR_NULL(ctl);
-    ERR_NULL(ctl->cfg);
-
-    ret = dbg_svr_idx_open_read(ctl); WRN_NZERO(ret);
-    if (ret != 0)
-    {
-        ctl->idx_create = DBG_SVR_IDX_MIN;
-        ctl->idx_delete = DBG_SVR_IDX_MIN;
-        ret = dbg_svr_idx_write(ctl); ERR_NZERO(ret);
-        ret = 0;
-        GOEXIT;
-    }
-
-    ret = fscanf(ctl->idx_fp, DBG_SVR_IDX_FMT, &(ctl->idx_create), &(ctl->idx_delete)); WRN_NPOS(ret);
-    if (ret < 1)
-    {
-        ctl->idx_create = DBG_SVR_IDX_MIN;
-        ctl->idx_delete = DBG_SVR_IDX_MIN;
-        ret = dbg_svr_idx_write(ctl); ERR_NZERO(ret);
-    }
-    else
-    {
-        INF("idx_create=%04u idx_delete=%04u", ctl->idx_create, ctl->idx_delete);
-    }
-
-    dbg_svr_idx_close(ctl);
-
-    ret = 0;
-LEXIT;
-    return(ret);
-LERROR;
-    GOEXIT;
-}
-/*························································*/
-static void
-dbg_svr_idx_close (
-    DBG_SVR_CTL * const                 ctl)
-{   ENTR();
-    int                                 ret = -1;
-
-    ERR_NULL(ctl);
-
-    if (ctl->idx_fp != NULL)
-    {
-
-        ret = fflush(ctl->idx_fp); WRN_NZERO(ret);
-        fclose(ctl->idx_fp);
-        ctl->idx_fp = NULL;
-    }
-
-LEXIT;
-    return;
-LERROR;
-    GOEXIT;
-}
-/*························································*/
-static int
-dbg_svr_idx_open_write (
-    DBG_SVR_CTL * const                 ctl)
-{   ENTR();
-    int                                 ret = -1;
-    ERR_NULL(ctl);
-    ERR_NULL(ctl->cfg);
-
-    if (ctl->idx_fp != NULL)
-    {
-        dbg_svr_idx_close(ctl);
-    }
-
-    snprintf(ctl->idx_path_name, DBG_SVR_IDX_PATH_NAME_LEN, "%s/"DBG_SVR_IDX_NAME_FMT, ctl->cfg->dir_path);
-    ctl->idx_fp = fopen(ctl->idx_path_name, "w+"); ERR_NULL(ctl->idx_fp);
-    rewind(ctl->idx_fp);
-    INF("open=\"%s\"", ctl->idx_path_name);
-
-    ret = 0;
-LEXIT;
-    return(ret);
-LERROR;
-    GOEXIT;
-}
-/*························································*/
-static int
-dbg_svr_idx_open_read (
-    DBG_SVR_CTL * const                 ctl)
-{   ENTR();
-    int                                 ret = -1;
-    ERR_NULL(ctl);
-    ERR_NULL(ctl->cfg);
-
-    if (ctl->idx_fp != NULL)
-    {
-        dbg_svr_idx_close(ctl);
-    }
-
-    snprintf(ctl->idx_path_name, DBG_SVR_IDX_PATH_NAME_LEN, "%s/"DBG_SVR_IDX_NAME_FMT, ctl->cfg->dir_path);
-    ctl->idx_fp = fopen(ctl->idx_path_name, "r"); ERR_NULL(ctl->idx_fp);
-    rewind(ctl->idx_fp);
-    INF("open=\"%s\"", ctl->idx_path_name);
-
-    ret = 0;
-LEXIT;
-    return(ret);
-LERROR;
-    GOEXIT;
-}
 /*························································*/
 static int
 dbg_svr_mkdir (

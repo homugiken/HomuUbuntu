@@ -63,7 +63,22 @@ DBGMSG_CLNT
 [OK]    dbgmsg_clnt_init()
 
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
+/*____________________________________________________________________________*/
+DBG_SVR_IDX
 
+-+- DebugServer.h
+-+- DebugServer.c
+
+[OK]    dbg_svr_idx_increase_remove()
+[OK]    dbg_svr_idx_increase_create()
+[OK]    dbg_svr_idx_write()
+[OK]    dbg_svr_idx_read()
+[OK]    dbg_svr_idx_close()
+[OK]    dbg_svr_idx_open_write()
+[OK]    dbg_svr_idx_release()
+[OK]    dbg_svr_idx_init()
+
+/*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
 
 
 
