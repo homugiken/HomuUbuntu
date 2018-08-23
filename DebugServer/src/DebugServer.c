@@ -121,6 +121,7 @@ dbg_svr_log_fprintf (
 
     if ((ctl->cfg->dbgmsg_svr_enable == true) && (ctl->dbgmsg_svr->ready == true))
     {
+        ret = dbgmsg_svr_fprintf(ctl->dbgmsg_svr, stdout); WRN_NZERO(ret);
         ret = dbgmsg_svr_fprintf(ctl->dbgmsg_svr, ctl->log_fp); WRN_NZERO(ret);
     }
 

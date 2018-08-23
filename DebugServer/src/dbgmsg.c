@@ -226,30 +226,12 @@ dbgmsg_svr_fprintf (
     FILE * const                        fp)
 {   ENTR();
     int                                 ret = -1;
-    ERR_NULL(ctl);
+    ERR_NULL(ctl); ERR_NULL(fp);
     ERR_FALSE(ctl->ready);
 
-    if (ctl->msg_count < 1)
+    for (uint32_t i = 0; i < ctl->msg_count; i++)
     {
-        INF("msg_count=%u", ctl->msg_count);
-        ret = 0;
-        GOEXIT;
-    }
-
-    if (fp != NULL)
-    {
-        for (uint32_t i = 0; i < ctl->msg_count; i++)
-        {
-            ret = dbgmsg_fprintf(fp, &(ctl->msg_buf[i])); WRN_NZERO(ret);
-            ret = dbgmsg_fprintf(stdout, &(ctl->msg_buf[i])); WRN_NZERO(ret);
-        }
-    }
-    else
-    {
-        for (uint32_t i = 0; i < ctl->msg_count; i++)
-        {
-            ret = dbgmsg_fprintf(stdout, &(ctl->msg_buf[i])); WRN_NZERO(ret);
-        }
+        ret = dbgmsg_fprintf(fp, &(ctl->msg_buf[i])); WRN_NZERO(ret);
     }
 
     ret = 0;
