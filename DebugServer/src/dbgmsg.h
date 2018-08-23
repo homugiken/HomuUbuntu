@@ -29,7 +29,7 @@
 #define DBGMSG_KEY_ID_MAX               0xFF
 #define DBGMSG_KEY_ID_DFT               DBGMSG_KEY_ID_MIN
 /*························································*/
-#define DBGMSG_MSG_FMT                  "%04d%02d%02d-%02d%02d%02d|P%04d|%s|%s\r\n"
+#define DBGMSG_MSG_FMT                  STR_FMT_DATE_TIME"|P%04d|%s|%s\r\n"
 /*························································*/
 typedef struct DBGMSG_MSG {
     long                                type;

@@ -43,7 +43,7 @@ static uint32_t                         gverbose = DBG_VERBOSE_DFT;
 static DBG_CLNT_CTL                     _gdbg_clnt, * const gdbg_clnt = &(_gdbg_clnt);
 #define DBGCLNT(fmt,...)                dbg_clnt_printf("#%04d|%s:"fmt"\r\n",__LINE__,__FUNCTION__,##__VA_ARGS__)
 #else
-static DBG_CLNT_CTL                     * const gdbg_clnt = NULL;
+static DBG_CLNT_CTL * const             gdbg_clnt = NULL;
 #define DBGCLNT(fmt,...)
 #endif
 /*························································*/

@@ -12,7 +12,7 @@ dbgmsg_fprintf (
     DBGMSG_MSG * const                  msg)
 {   ENTR();
     int                                 ret = -1;
-    struct tm *                         time_local;
+    static struct tm *                  time_local;
     ERR_NULL(fp); ERR_NULL(msg);
 
     time_local = localtime(&(msg->src_time));
@@ -38,9 +38,10 @@ dbgmsg_recv(
     ERR_FALSE(ctl->ready);
 
     MEMZ(msg, sizeof(DBGMSG_MSG));
-    ret = msgrcv(ctl->qid, msg, (sizeof(DBGMSG_MSG) - sizeof(long)), 0, (IPC_NOWAIT | MSG_NOERROR));
+    ret = msgrcv(ctl->qid, msg, (sizeof(DBGMSG_MSG) - sizeof(long)), 0, (IPC_NOWAIT | MSG_NOERROR)); ERR_NEG(ret);
     if (ret < 1)
     {
+        ret = -1;
         GOEXIT;
     }
 
@@ -93,10 +94,10 @@ dbgmsg_config (
     else
     {
         MEMZ(ctl->cfg, sizeof(DBGMSG_CFG));
-
     }
     cfg = ctl->cfg;
 
+    opterr = 0;
     optind = 0;
     while (1)
     {
@@ -176,12 +177,6 @@ dbgmsg_release (
     {
         free(ctl->cfg);
     }
-#if 0
-    if (ctl->qid >= 0)
-    {
-        int ret = msgctl(ctl->qid, IPC_RMID, NULL); WRN_NZERO(ret);
-    }
-#endif
 
     MEMZ(ctl, sizeof(DBGMSG_CTL));
     ctl->qid = -1;
@@ -276,7 +271,7 @@ dbgmsg_svr_recv (
     for (uint32_t i = 0; i < DBGMSG_SVR_MSG_BUF_SIZE; i++)
     {
         ret = dbgmsg_recv(ctl->dbgmsg, &(ctl->msg_buf[i]));
-        if (ret < 1)
+        if (ret != 0)
         {
             break;
         }
