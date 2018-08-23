@@ -375,9 +375,9 @@ dbgmsg_clnt_printf (
     ctl->src_name[DBGMSG_SRC_NAME_LEN - 1] = '\0';
 
     va_start(ctl->vargs, fmt);
-    vsnprintf(msg->text, DBGSTD_TEXT_LEN, fmt, ctl->vargs);
+    vsnprintf(msg->text, DBGMSG_TEXT_LEN, fmt, ctl->vargs);
     va_end(ctl->vargs);
-    msg->text[DBGSTD_TEXT_LEN - 1] = '\0';
+    msg->text[DBGMSG_TEXT_LEN - 1] = '\0';
 
     ret = msgsnd(ctl->dbgmsg->qid, msg, (sizeof(DBGMSG_MSG) - sizeof(long)), IPC_NOWAIT);
     if (ret != 0)
