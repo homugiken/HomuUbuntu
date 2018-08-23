@@ -815,6 +815,7 @@ main_config (
         LOG("argv[%d]=\"%s\"", i, argv[i]);
     }
 
+    opterr = 0;
     optind = 0;
     while (1)
     {

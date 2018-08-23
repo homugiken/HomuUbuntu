@@ -14,6 +14,7 @@
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
 #define DBG_ENABLE_ALL                  1   /* ALL */
 #define DBG_ENABLE_DBGSTD               1   /* DBGSTD */
+#define DBG_ENABLE_DBG_CLNT             1   /* DBG_CLNT */
 /*························································*/
 #define DBG_ENABLE_ERR                  1   /* ERR */
 #define DBG_ENABLE_WRN                  1   /* WRN */
@@ -31,16 +32,23 @@
 /*························································*/
 #define DBG_VERBOSE_DFT                 DBG_VERBOSE_LOG
 static uint32_t                         gverbose = DBG_VERBOSE_DFT;
-static DBG_CLNT_CTL                     _gdbg_clnt, * const gdbg_clnt = &(_gdbg_clnt);
 /*························································*/
 #if DBG_ENABLE_DBGSTD && DBG_ENABLE_ALL
-#define DBGSTD(fmt,...)                 dbgstd_printf("#%04d|%s:"fmt,__LINE__,__FUNCTION__,##__VA_ARGS__)
+#define DBGSTD(fmt,...)                 dbgstd_printf("#%04d|%s:"fmt"\r\n",__LINE__,__FUNCTION__,##__VA_ARGS__)
 #else
 #define DBGSTD(fmt,...)
 #endif
 /*························································*/
+#if DBG_ENABLE_DBG_CLNT && DBG_ENABLE_ALL
+static DBG_CLNT_CTL                     _gdbg_clnt, * const gdbg_clnt = &(_gdbg_clnt);
+#define DBGCLNT(fmt,...)                dbg_clnt_printf("#%04d|%s:"fmt"\r\n",__LINE__,__FUNCTION__,##__VA_ARGS__)
+#else
+static DBG_CLNT_CTL                     * const gdbg_clnt = NULL;
+#define DBGCLNT(fmt,...)
+#endif
+/*························································*/
 #if DBG_ENABLE_ALL                      /* DBG */
-#define DBG(fmt,...)                    DO(DBGSTD(fmt,##__VA_ARGS__);dbg_clnt_printf(gdbg_clnt, "#%04d|%s:"fmt,__LINE__,__FUNCTION__,##__VA_ARGS__);)
+#define DBG(fmt,...)                    DO(DBGSTD(fmt,##__VA_ARGS__);DBGCLNT(fmt,##__VA_ARGS__);)
 #else
 #define DBG(fmt,...)
 #endif

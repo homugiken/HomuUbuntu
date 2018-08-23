@@ -8,22 +8,22 @@
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
 void
 dbg_clnt_printf (
-    DBG_CLNT_CTL * const                ctl,
     const char *                        fmt,
     ...)
 {
-    static char                         str[DBG_CLNT_PRINTF_STR_LEN];
+    static char                         text[DBG_CLNT_PRINTF_TEXT_LEN];
+    static va_list                      vargs;
 
-    if ((ctl == NULL) || (ctl->ready != true)) { return; }
+    if ((gdbg_clnt == NULL) || (gdbg_clnt->ready != true)) { return; }
 
-    va_start(ctl->vargs, fmt);
-    vsnprintf(str, DBG_CLNT_PRINTF_STR_LEN, fmt, ctl->vargs);
-    va_end(ctl->vargs);
-    str[DBG_CLNT_PRINTF_STR_LEN - 1] = '\0';
+    va_start(vargs, fmt);
+    vsnprintf(text, DBG_CLNT_PRINTF_TEXT_LEN, fmt, vargs);
+    va_end(vargs);
+    text[DBG_CLNT_PRINTF_TEXT_LEN - 1] = '\0';
 
-    if (ctl->cfg->dbgmsg_clnt_enable == true)
+    if (gdbg_clnt->cfg->dbgmsg_clnt_enable == true)
     {
-        dbgmsg_clnt_printf(ctl->dbgmsg_clnt, "%s", str);
+        dbgmsg_clnt_printf(gdbg_clnt->dbgmsg_clnt, "%s", text);
     }
 }
 /*························································*/
@@ -86,10 +86,10 @@ dbg_clnt_config (
     else
     {
         MEMZ(ctl->cfg, sizeof(DBG_CLNT_CFG));
-
     }
     cfg = ctl->cfg;
 
+    opterr = 0;
     optind = 0;
     while (1)
     {

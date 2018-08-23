@@ -4,6 +4,22 @@ DBGSTD
 -+- dbgstd.h
 -+- dbgstd.c
 
-[OK|20180823]                           dbgstd_printf()
+[OK]    dbgstd_printf()
+
+/*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
+
+/*____________________________________________________________________________*/
+DBG_CLNT
+
+-+- DebugClient.h
+-+- DebugClient.c
+
+[OK]    dbg_clnt_printf()
+[OK]    dbg_clnt_set_src_name()
+[OK]    dbg_clnt_config_show()
+[OK]    dbg_clnt_config()
+[OK]    dbg_clnt_help()
+[OK]    dbg_clnt_release()
+[OK]    dbg_clnt_init()
 
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
