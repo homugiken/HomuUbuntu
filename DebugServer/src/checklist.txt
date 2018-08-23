@@ -50,7 +50,19 @@ DBGMSG_SVR
 [OK]    dbgmsg_svr_init()
 
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
+/*____________________________________________________________________________*/
+DBGMSG_CLNT
 
+-+- dbgmsg.h
+-+- dbgmsg.c
+
+[OK]    dbgmsg_clnt_printf()
+[OK]    dbgmsg_clnt_set_src_name()
+[OK]    dbgmsg_clnt_help()
+[OK]    dbgmsg_clnt_release()
+[OK]    dbgmsg_clnt_init()
+
+/*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
 
 
 

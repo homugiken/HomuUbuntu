@@ -359,7 +359,8 @@ dbgmsg_clnt_printf (
     ret = msgsnd(ctl->dbgmsg->qid, msg, (sizeof(DBGMSG_MSG) - sizeof(long)), IPC_NOWAIT);
     if (ret != 0)
     {
-        DBGSTD("ERR!ret=%d!=0", ret);
+        dbgmsg_fprintf(stdout, msg);
+        DBGSTD("msgsnd ret=%d!=0", ret);
     }
 }
 /*························································*/
