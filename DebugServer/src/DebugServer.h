@@ -54,9 +54,21 @@ static int dbg_svr_idx_init (DBG_SVR_IDX * const idx, char * const path);
 /*____________________________________________________________________________*/
 /* DBG_SVR_LOG */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
+#define DBG_SVR_LOG_OPTL_PATH           "path"
+#define DBG_SVR_LOG_OPTC_PATH           'p'
+#define DBG_SVR_LOG_OPTS_PATH           "log path"
+#define DBG_SVR_LOG_OPTL_SIZE           "size"
+#define DBG_SVR_LOG_OPTC_SIZE           's'
+#define DBG_SVR_LOG_OPTS_SIZE           "log size limit (MB)"
+#define DBG_SVR_LOG_OPTL_COUNT          "count"
+#define DBG_SVR_LOG_OPTC_COUNT          'c'
+#define DBG_SVR_LOG_OPTS_COUNT          "log count limit "
+/*························································*/
 #define DBG_SVR_LOG_NAME_FMT            "dbg-%04d-%04d%02d%02d-%02d%02d%02d.txt"
-#define DBG_SVR_LOG_NAME_LEN            1024
+#define DBG_SVR_LOG_NAME_LEN            32
 #define DBG_SVR_LOG_PATH_NAME_LEN       (GENERAL_PATH_LEN + DBG_SVR_LOG_NAME_LEN)
+/*························································*/
+#define DBG_SVR_LOG_REMOVE_NAME_FMT     "%s/dbg-%04u*.txt"
 /*························································*/
 #define DBG_SVR_LOG_SIZE_MIN            1
 #define DBG_SVR_LOG_SIZE_MAX            10
@@ -66,27 +78,43 @@ static int dbg_svr_idx_init (DBG_SVR_IDX * const idx, char * const path);
 #define DBG_SVR_LOG_COUNT_MAX           100
 #define DBG_SVR_LOG_COUNT_DFT           DBG_SVR_LOG_COUNT_MIN
 /*························································*/
-typedef struct DBG_SVR_LOG {
+typedef struct DBG_SVR_LOG_CFG {
+    char                                path[GENERAL_PATH_LEN];
+    uint32_t                            limit_size;         /* MB */
+    uint32_t                            limit_count;
+} DBG_SVR_LOG_CFG;
+/*························································*/
+typedef struct DBG_SVR_LOG_CTL {
+    bool                                ready;
+    DBG_SVR_LOG_CFG                     _cfg, * cfg;
+    DBG_SVR_DIR                         _dir, * dir;
+    DBG_SVR_IDX                         _idx, * idx;
     FILE *                              fp;
     char                                name[DBG_SVR_LOG_NAME_LEN];
     char                                path_name[DBG_SVR_LOG_PATH_NAME_LEN];
+    char                                remove_name[DBG_SVR_LOG_PATH_NAME_LEN];
     uint32_t                            size;               /* MB */
     uint32_t                            count;
-} DBG_SVR_LOG;
+    time_t                              time_now;
+    struct tm *                         time_local;
+} DBG_SVR_LOG_CTL;
 /*························································*/
-static int dbg_svr_log_remove (DBG_SVR_LOG * const log, DBG_SVR_IDX * const idx);
-static int dbg_svr_log_get_size (DBG_SVR_LOG * const log);
-static void dbg_svr_log_flush (DBG_SVR_LOG * const log);
-static int dbg_svr_log_write_trailer (DBG_SVR_LOG * const log);
-static int dbg_svr_log_write_header (DBG_SVR_LOG * const log);
-static int dbg_svr_log_next_name (DBG_SVR_LOG * const log);
-static int dbg_svr_log_next_shift (DBG_SVR_LOG * const log);
-static void dbg_svr_log_close (DBG_SVR_LOG * const log);
-static int dbg_svr_log_open (DBG_SVR_LOG * const log);
-static void dbg_svr_log_release (DBG_SVR_LOG * const log);
-static int dbg_svr_log_init (DBG_SVR_LOG * const log, char * const path);
+static int dbg_svr_log_remove (DBG_SVR_LOG_CTL * const ctl);
+static int dbg_svr_log_check_count (DBG_SVR_LOG_CTL * const ctl);
+static int dbg_svr_log_check_size (DBG_SVR_LOG_CTL * const ctl);
+static int dbg_svr_log_shift (DBG_SVR_LOG_CTL * const ctl);
+static int dbg_svr_log_name_next (DBG_SVR_LOG_CTL * const ctl);
+static void dbg_svr_log_flush (DBG_SVR_LOG_CTL * const ctl);
+static int dbg_svr_log_fprintf (DBG_SVR_LOG_CTL * const ctl);
+static int dbg_svr_log_write_trailer (DBG_SVR_LOG_CTL * const ctl);
+static int dbg_svr_log_write_header (DBG_SVR_LOG_CTL * const ctl);
+static void dbg_svr_log_close (DBG_SVR_LOG_CTL * const ctl);
+static int dbg_svr_log_open (DBG_SVR_LOG_CTL * const ctl);
+static void dbg_svr_log_config_show (DBG_SVR_LOG_CFG * const ctl);
+static int dbg_svr_log_config (DBG_SVR_LOG_CTL * const ctl, const int argc, char * const argvp[]);
+static void dbg_svr_log_release (DBG_SVR_LOG_CTL * const ctl);
+static int dbg_svr_log_init (DBG_SVR_LOG_CTL * const ctl, const int argc, char * const argvp[]);
 
-// static int dbg_svr_log_fprintf (DBG_SVR_LOG * const log);
 // static int dbg_svr_log_open_new (DBG_SVR_LOG * const log);
 
 
@@ -97,15 +125,7 @@ static int dbg_svr_log_init (DBG_SVR_LOG * const log, char * const path);
 #define DBG_SVR_VERBOSE_MAX             DBG_VERBOSE_TAG
 #define DBG_SVR_VERBOSE_DFT             DBG_VERBOSE_MAX
 /*························································*/
-#define DBG_SVR_OPTL_LOG_PATH           "path"
-#define DBG_SVR_OPTC_LOG_PATH           'p'
-#define DBG_SVR_OPTS_LOG_PATH           "log file storage path"
-#define DBG_SVR_OPTL_LOG_SIZE           "size"
-#define DBG_SVR_OPTC_LOG_SIZE           's'
-#define DBG_SVR_OPTS_LOG_SIZE           "log file size limit (MB)"
-#define DBG_SVR_OPTL_LOG_COUNT          "count"
-#define DBG_SVR_OPTC_LOG_COUNT          'c'
-#define DBG_SVR_OPTS_LOG_COUNT          "log file quantity limit "
+
 #define DBG_SVR_OPTL_DBGMSG_SVR         "dbgmsg"
 #define DBG_SVR_OPTC_DBGMSG_SVR         'm'
 #define DBG_SVR_OPTS_DBGMSG_SVR         "dbgmsg_svr enable"
@@ -116,21 +136,15 @@ static int dbg_svr_log_init (DBG_SVR_LOG * const log, char * const path);
 
 
 typedef struct DBG_SVR_CFG {
-    char                                path[GENERAL_PATH_LEN];
-    uint32_t                            log_size;           /* MB */
-    uint32_t                            log_count;
+
     bool                                dbgmsg_svr_enable;
 } DBG_SVR_CFG;
 /*························································*/
 typedef struct DBG_SVR_CTL {
     bool                                ready;
     DBG_SVR_CFG *                       cfg;
-    DBG_SVR_DIR                         _dir, * dir;
-    DBG_SVR_IDX                         _idx, * idx;
     DBG_SVR_LOG                         _log, * log;
     DBGMSG_SVR_CTL                      _dbgmsg_svr, * dbgmsg_svr;
-    time_t                              time_now;
-    struct tm *                         time_local;
 
 
 
