@@ -6,6 +6,24 @@
 #include "debug.h"
 
 /*____________________________________________________________________________*/
+/* DBG_SVR_DIR */
+/*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
+#define DBG_SVR_DIR_NAME_DFT            "dbg"
+#define DBG_SVR_DIR_NAME_LEN            32
+#define DBG_SVR_DIR_PATH_NAME_LEN       (GENERAL_PATH_LEN + DBG_SVR_DIR_NAME_LEN)
+/*························································*/
+typedef struct DBG_SVR_DIR {
+    DIR *                               dp;
+    char                                path_name[DBG_SVR_DIR_PATH_NAME_LEN];
+} DBG_SVR_DIR;
+/*························································*/
+static void dbg_svr_dir_close (DBG_SVR_DIR * const dir);
+static int dbg_svr_dir_open (DBG_SVR_DIR * const dir);
+static int dbg_svr_dir_make (DBG_SVR_DIR * const dir);
+static void dbg_svr_dir_release (DBG_SVR_DIR * const dir);
+static int dbg_svr_dir_init (DBG_SVR_DIR * const dir, char * const path);
+
+/*____________________________________________________________________________*/
 /* DBG_SVR_IDX */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
 #define DBG_SVR_IDX_FMT                 "[IDX|CREATE=%04u|REMOVE=%04u]\r\n"
@@ -13,10 +31,9 @@
 #define DBG_SVR_IDX_MAX                 9999
 /*························································*/
 #define DBG_SVR_IDX_NAME_DFT            "dbg-idx.txt"
-#define DBG_SVR_IDX_NAME_LEN            16
+#define DBG_SVR_IDX_NAME_LEN            32
 #define DBG_SVR_IDX_PATH_NAME_LEN       (GENERAL_PATH_LEN + DBG_SVR_IDX_NAME_LEN)
 /*························································*/
-
 typedef struct DBG_SVR_IDX {
     FILE *                              fp;
     uint32_t                            create;
@@ -32,8 +49,45 @@ static void dbg_svr_idx_close (DBG_SVR_IDX * const idx);
 static int dbg_svr_idx_open_write (DBG_SVR_IDX * const idx);
 static int dbg_svr_idx_open_read (DBG_SVR_IDX * const idx);
 static void dbg_svr_idx_release (DBG_SVR_IDX * const idx);
-static int dbg_svr_idx_init (DBG_SVR_IDX * const idx, char * const path_name);
+static int dbg_svr_idx_init (DBG_SVR_IDX * const idx, char * const path);
 
+/*____________________________________________________________________________*/
+/* DBG_SVR_LOG */
+/*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
+#define DBG_SVR_LOG_NAME_FMT            "dbg-%04d-%04d%02d%02d-%02d%02d%02d.txt"
+#define DBG_SVR_LOG_NAME_LEN            1024
+#define DBG_SVR_LOG_PATH_NAME_LEN       (GENERAL_PATH_LEN + DBG_SVR_LOG_NAME_LEN)
+/*························································*/
+#define DBG_SVR_LOG_SIZE_MIN            1
+#define DBG_SVR_LOG_SIZE_MAX            10
+#define DBG_SVR_LOG_SIZE_DFT            DBG_SVR_LOG_SIZE_MIN
+/*························································*/
+#define DBG_SVR_LOG_COUNT_MIN           10
+#define DBG_SVR_LOG_COUNT_MAX           100
+#define DBG_SVR_LOG_COUNT_DFT           DBG_SVR_LOG_COUNT_MIN
+/*························································*/
+typedef struct DBG_SVR_LOG {
+    FILE *                              fp;
+    char                                name[DBG_SVR_LOG_NAME_LEN];
+    char                                path_name[DBG_SVR_LOG_PATH_NAME_LEN];
+    uint32_t                            size;               /* MB */
+    uint32_t                            count;
+} DBG_SVR_LOG;
+/*························································*/
+static int dbg_svr_log_remove (DBG_SVR_LOG * const log, DBG_SVR_IDX * const idx);
+static int dbg_svr_log_get_size (DBG_SVR_LOG * const log);
+static void dbg_svr_log_flush (DBG_SVR_LOG * const log);
+static int dbg_svr_log_write_trailer (DBG_SVR_LOG * const log);
+static int dbg_svr_log_write_header (DBG_SVR_LOG * const log);
+static int dbg_svr_log_next_name (DBG_SVR_LOG * const log);
+static int dbg_svr_log_next_shift (DBG_SVR_LOG * const log);
+static void dbg_svr_log_close (DBG_SVR_LOG * const log);
+static int dbg_svr_log_open (DBG_SVR_LOG * const log);
+static void dbg_svr_log_release (DBG_SVR_LOG * const log);
+static int dbg_svr_log_init (DBG_SVR_LOG * const log, char * const path);
+
+// static int dbg_svr_log_fprintf (DBG_SVR_LOG * const log);
+// static int dbg_svr_log_open_new (DBG_SVR_LOG * const log);
 
 
 /*____________________________________________________________________________*/
@@ -56,26 +110,13 @@ static int dbg_svr_idx_init (DBG_SVR_IDX * const idx, char * const path_name);
 #define DBG_SVR_OPTC_DBGMSG_SVR         'm'
 #define DBG_SVR_OPTS_DBGMSG_SVR         "dbgmsg_svr enable"
 /*························································*/
-#define DBG_SVR_DIR_PATH_LEN            1024
-#define DBG_SVR_DIR_PATH_DFT            "./dbg"
-/*························································*/
 #define DBG_SVR_LOG_HEADER_TIME_FMT     "[TIME|START=%04d/%02d/%02d-%02d:%02d:%02d]\r\n"
 #define DBG_SVR_LOG_TRAILER_TIME_FMT    "[TIME|END=%04d/%02d/%02d-%02d:%02d:%02d]\r\n"
 /*························································*/
-#define DBG_SVR_LOG_NAME_LEN            1024
-#define DBG_SVR_LOG_NAME_FMT            "dbg-%04d-%04d%02d%02d-%02d%02d%02d.txt"
-#define DBG_SVR_LOG_PATH_NAME_LEN       (DBG_SVR_DIR_PATH_LEN + DBG_SVR_LOG_NAME_LEN)
-/*························································*/
-#define DBG_SVR_LOG_SIZE_MIN            1
-#define DBG_SVR_LOG_SIZE_MAX            10
-#define DBG_SVR_LOG_SIZE_DFT            DBG_SVR_LOG_SIZE_MIN
-/*························································*/
-#define DBG_SVR_LOG_COUNT_MIN           10
-#define DBG_SVR_LOG_COUNT_MAX           100
-#define DBG_SVR_LOG_COUNT_DFT           DBG_SVR_LOG_COUNT_MIN
-/*························································*/
+
+
 typedef struct DBG_SVR_CFG {
-    char                                dir_path[DBG_SVR_DIR_PATH_LEN];
+    char                                path[GENERAL_PATH_LEN];
     uint32_t                            log_size;           /* MB */
     uint32_t                            log_count;
     bool                                dbgmsg_svr_enable;
@@ -84,36 +125,22 @@ typedef struct DBG_SVR_CFG {
 typedef struct DBG_SVR_CTL {
     bool                                ready;
     DBG_SVR_CFG *                       cfg;
+    DBG_SVR_DIR                         _dir, * dir;
+    DBG_SVR_IDX                         _idx, * idx;
+    DBG_SVR_LOG                         _log, * log;
     DBGMSG_SVR_CTL                      _dbgmsg_svr, * dbgmsg_svr;
     time_t                              time_now;
     struct tm *                         time_local;
-    char                                log_name[DBG_SVR_LOG_NAME_LEN];
-    char                                log_path_name[DBG_SVR_LOG_PATH_NAME_LEN];
-    FILE *                              log_fp;
-    uint32_t                            log_size_current;   /* MB */
-    DBG_SVR_IDX                         _idx, * idx;
 
-    DIR *                               dir;
+
+
 } DBG_SVR_CTL;
 /*························································*/
 static int dbg_svr_loop_job (DBG_SVR_CTL * const ctl);
 static int dbg_svr_recv (DBG_SVR_CTL * const ctl);
 /*························································*/
-static int dbg_svr_log_delete (DBG_SVR_CTL * const ctl);
-static int dbg_svr_log_check_size (DBG_SVR_CTL * const ctl);
-static int dbg_svr_log_shift (DBG_SVR_CTL * const ctl);
-static void dbg_svr_log_flush (DBG_SVR_CTL * const ctl);
-static int dbg_svr_log_fprintf (DBG_SVR_CTL * const ctl);
-static int dbg_svr_log_write_trailer (DBG_SVR_CTL * const ctl);
-static int dbg_svr_log_write_header (DBG_SVR_CTL * const ctl);
-static int dbg_svr_log_open_new (DBG_SVR_CTL * const ctl);
-static int dbg_svr_log_name_new (DBG_SVR_CTL * const ctl);
-static void dbg_svr_log_close (DBG_SVR_CTL * const ctl);
-static int dbg_svr_log_open (DBG_SVR_CTL * const ctl);
-/*························································*/
-static int dbg_svr_mkdir (DBG_SVR_CTL * const ctl);
-static void dbg_svr_dir_close (DBG_SVR_CTL * const ctl);
-static int dbg_svr_dir_open (DBG_SVR_CTL * const ctl);
+
+
 /*························································*/
 static void dbg_svr_config_show (DBG_SVR_CFG * const cfg);
 static int dbg_svr_config (DBG_SVR_CTL * const ctl, const int argc, char * const argv[]);
