@@ -8,24 +8,28 @@
 /*____________________________________________________________________________*/
 /* DBG_SVR_DIR */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
+#define DBG_SVR_DIR_PATH_DFT            "."
+/*························································*/
 #define DBG_SVR_DIR_NAME_DFT            "dbg"
 #define DBG_SVR_DIR_NAME_LEN            32
 #define DBG_SVR_DIR_PATH_NAME_LEN       (GENERAL_PATH_LEN + DBG_SVR_DIR_NAME_LEN)
 /*························································*/
-typedef struct DBG_SVR_DIR {
+typedef struct DBG_SVR_DIR_CTL {
     DIR *                               dp;
     char                                path_name[DBG_SVR_DIR_PATH_NAME_LEN];
-} DBG_SVR_DIR;
+} DBG_SVR_DIR_CTL;
 /*························································*/
-static void dbg_svr_dir_close (DBG_SVR_DIR * const dir);
-static int dbg_svr_dir_open (DBG_SVR_DIR * const dir);
-static int dbg_svr_dir_make (DBG_SVR_DIR * const dir);
-static void dbg_svr_dir_release (DBG_SVR_DIR * const dir);
-static int dbg_svr_dir_init (DBG_SVR_DIR * const dir, char * const path);
+static void dbg_svr_dir_close (DBG_SVR_DIR_CTL * const ctl);
+static int dbg_svr_dir_open (DBG_SVR_DIR_CTL * const ctl);
+static int dbg_svr_dir_make (DBG_SVR_DIR_CTL * const ctl);
+static void dbg_svr_dir_release (DBG_SVR_DIR_CTL * const ctl);
+static int dbg_svr_dir_init (DBG_SVR_DIR_CTL * const ctl, char * const path);
 
 /*____________________________________________________________________________*/
 /* DBG_SVR_IDX */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
+#define DBG_SVR_IDX_PATH_DFT            "."
+/*························································*/
 #define DBG_SVR_IDX_FMT                 "[IDX|CREATE=%04u|REMOVE=%04u]\r\n"
 #define DBG_SVR_IDX_MIN                 0
 #define DBG_SVR_IDX_MAX                 9999
@@ -64,6 +68,8 @@ static int dbg_svr_idx_init (DBG_SVR_IDX * const idx, char * const path);
 #define DBG_SVR_LOG_OPTC_COUNT          'c'
 #define DBG_SVR_LOG_OPTS_COUNT          "log count limit "
 /*························································*/
+#define DBG_SVR_LOG_PATH_DFT            "."
+/*························································*/
 #define DBG_SVR_LOG_NAME_FMT            "dbg-%04d-%04d%02d%02d-%02d%02d%02d.txt"
 #define DBG_SVR_LOG_NAME_LEN            32
 #define DBG_SVR_LOG_PATH_NAME_LEN       (GENERAL_PATH_LEN + DBG_SVR_LOG_NAME_LEN)
@@ -87,7 +93,7 @@ typedef struct DBG_SVR_LOG_CFG {
 typedef struct DBG_SVR_LOG_CTL {
     bool                                ready;
     DBG_SVR_LOG_CFG                     _cfg, * cfg;
-    DBG_SVR_DIR                         _dir, * dir;
+    DBG_SVR_DIR_CTL                     _dir, * dir;
     DBG_SVR_IDX                         _idx, * idx;
     FILE *                              fp;
     char                                name[DBG_SVR_LOG_NAME_LEN];
@@ -143,7 +149,7 @@ typedef struct DBG_SVR_CFG {
 typedef struct DBG_SVR_CTL {
     bool                                ready;
     DBG_SVR_CFG *                       cfg;
-    DBG_SVR_LOG                         _log, * log;
+    DBG_SVR_LOG_CTL                     _log, * log;
     DBGMSG_SVR_CTL                      _dbgmsg_svr, * dbgmsg_svr;
 
 
