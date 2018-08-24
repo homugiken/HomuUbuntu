@@ -6,7 +6,7 @@
 /*____________________________________________________________________________*/
 /* GLOBAL */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
-static DBG_SVR_CTL                      _gdbg_svr, * const gdbg_svr = &(_gdbg_svr);
+static DBG_SVR_CTL                      _gdbg_svr = {0}, * const gdbg_svr = &(_gdbg_svr);
 
 /*____________________________________________________________________________*/
 /* DBG_SVR_DIR */
@@ -483,12 +483,12 @@ dbg_svr_log_write_header (
 
     ctl->time_now = time(NULL);
     ctl->time_local = localtime(&(ctl->time_now));
-    fprintf(ctl->fp, DBG_SVR_LOG_COMPILE_TIME_FMT, __DATE__, __TIME__);
-    fprintf(ctl->fp, DBG_SVR_LOG_HEADER_FMT, ctl->dir->path_name, ctl->name);
-    fprintf(ctl->fp, DBG_SVR_IDX_FMT, ctl->idx->create, ctl->idx->remove);
-    fprintf(ctl->fp, DBG_SVR_LOG_HEADER_TIME_FMT,
+    ret = fprintf(ctl->fp, DBG_SVR_LOG_COMPILE_TIME_FMT, __DATE__, __TIME__); WRN_NPOS(ret);
+    ret = fprintf(ctl->fp, DBG_SVR_LOG_HEADER_FMT, ctl->dir->path_name, ctl->name); WRN_NPOS(ret);
+    ret = fprintf(ctl->fp, DBG_SVR_IDX_FMT, ctl->idx->create, ctl->idx->remove); WRN_NPOS(ret);
+    ret = fprintf(ctl->fp, DBG_SVR_LOG_HEADER_TIME_FMT,
                   ctl->LOCAL_YEAR, ctl->LOCAL_MON, ctl->LOCAL_DAY,
-                  ctl->LOCAL_HOUR, ctl->LOCAL_MIN, ctl->LOCAL_SEC);
+                  ctl->LOCAL_HOUR, ctl->LOCAL_MIN, ctl->LOCAL_SEC); WRN_NPOS(ret);
     dbg_svr_log_flush(ctl);
 
     ret = 0;
@@ -651,6 +651,7 @@ static void
 dbg_svr_log_help (void)
 {   ENTR();
 
+    printf("dbg_svr_log:\r\n");
     printf("-%c/--%s\t%s\r\n",
            DBG_SVR_LOG_OPTC_PATH, DBG_SVR_LOG_OPTL_PATH, DBG_SVR_LOG_OPTS_PATH);
     printf("-%c/--%s\t%s <%d,%d>\r\n",
@@ -714,7 +715,7 @@ dbg_svr_log_init (
     ret = dbg_svr_dir_init(ctl->dir, ctl->cfg->path); ERR_NZERO(ret);
 
     ctl->idx = &(ctl->_idx);
-    ret = dbg_svr_idx_init(ctl->idx, ctl->cfg->path); ERR_NZERO(ret);
+    ret = dbg_svr_idx_init(ctl->idx, ctl->dir->path_name); ERR_NZERO(ret);
 
     ctl->ready = true;
     LOG("ready=%s", STRBOOL(ctl->ready));
@@ -746,6 +747,12 @@ dbg_svr_loop_job (
     ctl->time_now = time(NULL);
     if ((ctl->time_now < ctl->time_last) || ((ctl->time_now - ctl->time_last) >= 60))
     {
+        if (ctl->cfg->test_enable)
+        {
+            ctl->time_local = localtime(&(ctl->time_now));
+            LOG(GENERAL_STR_FMT_DATE_TIME, ctl->LOCAL_YEAR, ctl->LOCAL_MON, ctl->LOCAL_DAY, ctl->LOCAL_HOUR, ctl->LOCAL_MIN, ctl->LOCAL_SEC);
+        }
+
         ctl->time_last = ctl->time_now;
         dbg_svr_log_flush(ctl->log);
         ret = dbg_svr_log_check_size(ctl->log); WRN_NZERO(ret);
@@ -808,6 +815,7 @@ dbg_svr_config_show (
 {   ENTR();
     ERR_NULL(cfg);
 
+    LOG("test_enable=%s", STRBOOL(cfg->test_enable));
     LOG("dbgmsg_svr_enable=%s", STRBOOL(cfg->dbgmsg_svr_enable));
 
 LEXIT;
@@ -828,10 +836,11 @@ dbg_svr_config (
     int                                 optindex;
     struct option                       optlist[] =
     {
+        {DBG_SVR_OPTL_TEST,             no_argument,        0, DBG_SVR_OPTC_TEST},
         {DBG_SVR_OPTL_DBGMSG_SVR,       no_argument,        0, DBG_SVR_OPTC_DBGMSG_SVR},
         {0, 0, 0, 0}
     };
-    ERR_NULL(cfg); ERR_NPOS(argc); ERR_NULL(argv);
+    ERR_NPOS(argc); ERR_NULL(argv);
 
     if (ctl->cfg == NULL)
     {
@@ -851,6 +860,10 @@ dbg_svr_config (
 
         switch (optchar)
         {
+        case DBG_SVR_OPTC_TEST:
+            cfg->test_enable = true;
+            INF("test_enable=%s", STRBOOL(cfg->test_enable));
+            break;
         case DBG_SVR_OPTC_DBGMSG_SVR:
             cfg->dbgmsg_svr_enable = true;
             INF("dbgmsg_svr_enable=%s", STRBOOL(cfg->dbgmsg_svr_enable));
@@ -871,6 +884,8 @@ void
 dbg_svr_help (void)
 {   ENTR();
 
+    printf("dbg_svr:\r\n");
+    printf("-%c/--%s\t%s\r\n", DBG_SVR_OPTC_TEST, DBG_SVR_OPTL_TEST, DBG_SVR_OPTS_TEST);
     printf("-%c/--%s\t%s\r\n", DBG_SVR_OPTC_DBGMSG_SVR, DBG_SVR_OPTL_DBGMSG_SVR, DBG_SVR_OPTS_DBGMSG_SVR);
 
     dbg_svr_log_help();
@@ -945,14 +960,55 @@ LERROR;
 /*____________________________________________________________________________*/
 /* MAIN */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
+static void
+main_signal_action (
+    int                                 signum
+    )
+{   ENTR();
+    switch (signum)
+    {
+    case SIGINT:
+        WRN("SIGINT");
+        main_exit(0);
+        break;
+    default:
+        break;
+    }
+
+LEXIT;
+    return;
+}
+/*························································*/
+static int
+main_signal_init (void)
+{   ENTR();
+    int                                 ret = -1;
+    struct sigaction                    * sigact = NULL;
+
+    MALLOCZ(sigact, struct sigaction);
+    sigact->sa_handler = main_signal_action;
+    ret = sigemptyset(&(sigact->sa_mask)); ERR_NZERO(ret);
+
+    ret = sigaction(SIGINT, sigact, NULL); ERR_NZERO(ret);
+    LOG("ctrl+c to quit");
+
+    ret = 0;
+LEXIT;
+    return(ret);
+LERROR;
+    GOEXIT;
+}
+/*························································*/
 static int
 main_loop (void)
 {   ENTR();
     int                                 ret = -1;
-    ERR_NZERO(gdbg_svr);
+    ERR_NULL(gdbg_svr);
 
     while (1)
     {
+        usleep(1000);
+
         if (gdbg_svr->ready == true)
         {
             ret = dbg_svr_loop_job(gdbg_svr); WRN_NZERO(ret);
@@ -992,9 +1048,8 @@ main_config (
     };
     ERR_NPOS(argc); ERR_NULL(argv);
 
-    if (argc < 2) { GOERROR; }
-    LOG("argc=%d", argc);
 
+    LOG("argc=%d", argc);
     for (int i = 1; i < argc; i++)
     {
         LOG("argv[%d]=\"%s\"", i, argv[i]);
@@ -1006,7 +1061,6 @@ main_config (
     {
         optchar = getopt_long_only(argc, argv, "", optlist, &optindex);
         if (optchar == -1) { break; }
-
         switch (optchar)
         {
         case MAIN_OPTC_HELP:
@@ -1023,10 +1077,7 @@ main_config (
         }
     }
 
-    if ((gverbose < MAIN_VERBOSE_MIN) || (gverbose > MAIN_VERBOSE_MAX))
-    {
-        gverbose = MAIN_VERBOSE_DFT;
-    }
+    REGULATE(gverbose, MAIN_VERBOSE_MIN, MAIN_VERBOSE_MAX);
 
     ret = 0;
 LEXIT;
@@ -1042,7 +1093,8 @@ main_help (
     ERR_NULL(name);
 
     printf("%s options:\r\n", name);
-    printf("-%c/--%s\t%s\r\n", MAIN_OPTC_HELP, MAIN_OPTL_HELP, MAIN_OPTS_HELP);
+    printf("-%c/--%s\t%s\r\n",
+           MAIN_OPTC_HELP, MAIN_OPTL_HELP, MAIN_OPTS_HELP);
     printf("-%c/--%s\t%s <%d,%d>\r\n",
            MAIN_OPTC_VERBOSE, MAIN_OPTL_VERBOSE, MAIN_OPTS_VERBOSE,
            DBG_VERBOSE_MIN, DBG_VERBOSE_MAX);
@@ -1063,13 +1115,13 @@ main_exit (
 
     LOG("ret=%d", ret);
 
-    if (gdbg_svr != NULL)
-    {
-        dbg_svr_release(gdbg_svr);
-    }
     if (gdbg_clnt != NULL)
     {
         dbg_clnt_release(gdbg_clnt);
+    }
+    if (gdbg_svr != NULL)
+    {
+        dbg_svr_release(gdbg_svr);
     }
 
 LEXIT;
@@ -1111,13 +1163,16 @@ main (
         main_exit(0);
     }
 
+    gverbose = MAIN_VERBOSE_DFT;
+    ret = main_signal_init(); ERR_NZERO(ret);
+
+
     ERR_NULL(gdbg_clnt);
     MEMZ(gdbg_clnt, sizeof(DBG_CLNT_CTL));
     ret = dbg_clnt_init(gdbg_clnt, argc, argv); ERR_NZERO(ret);
-    ret = dbg_clnt_set_src_name(gdbg_clnt, "DBG_SVR"); WRN_NZERO(ret);
+    ret = dbg_clnt_set_src_name(gdbg_clnt, MAIN_SRC_NAME); WRN_NZERO(ret);
 
     ret = main_init(argc, argv); ERR_NZERO(ret);
-
     ret = main_loop(); ERR_NZERO(ret);
 
     ret = 0;

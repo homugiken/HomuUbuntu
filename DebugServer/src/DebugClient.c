@@ -119,6 +119,8 @@ dbg_clnt_help (void)
 {   ENTR();
 
     printf("dbg_clnt:\r\n");
+    printf("-%c/--%s\t%s\r\n", DBG_CLNT_OPTC_DBGMSG_CLNT, DBG_CLNT_OPTL_DBGMSG_CLNT, DBG_CLNT_OPTS_DBGMSG_CLNT);
+
     dbgmsg_clnt_help();
 
 LEXIT;

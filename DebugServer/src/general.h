@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <ftw.h>
 #include <getopt.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -39,6 +40,9 @@
 #define LOCAL_MIN                       time_local->tm_min
 #define LOCAL_SEC                       time_local->tm_sec
 /*························································*/
+#define GENERAL_STR_FMT_DATE_TIME       "%04d%02d%02d-%02d%02d%02d"
+#define GENERAL_PATH_LEN                1024
+/*························································*/
 #define DO(JOB)                         do {JOB} while (0)
 #define MEMZ(PTR,SIZE)                  memset(PTR,0,SIZE)
 #define MALLOCZ(PTR,TYPE)               DO(PTR=malloc(sizeof(TYPE));if(PTR!=NULL){MEMZ(PTR,sizeof(TYPE));})
@@ -54,13 +58,6 @@ extern int                              opterr;
 extern int                              optind;
 extern char *                           optarg;
 #define OPTARG_INVALID(ARG)             (ARG==NULL)||(ARG[0]=='-')||(strlen(ARG)<1)
-
-/*____________________________________________________________________________*/
-/* STR_FMT */
-/*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
-#define STR_FMT_DATE_TIME               "%04d%02d%02d-%02d%02d%02d"
-
-#define GENERAL_PATH_LEN                1024
 
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
 #endif /* GENERAL_H_ */

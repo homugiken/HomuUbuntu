@@ -38,7 +38,7 @@ dbgmsg_recv(
     ERR_FALSE(ctl->ready);
 
     MEMZ(msg, sizeof(DBGMSG_MSG));
-    ret = msgrcv(ctl->qid, msg, (sizeof(DBGMSG_MSG) - sizeof(long)), 0, (IPC_NOWAIT | MSG_NOERROR)); ERR_NEG(ret);
+    ret = msgrcv(ctl->qid, msg, (sizeof(DBGMSG_MSG) - sizeof(long)), 0, (IPC_NOWAIT | MSG_NOERROR));
     if (ret < 1)
     {
         ret = -1;

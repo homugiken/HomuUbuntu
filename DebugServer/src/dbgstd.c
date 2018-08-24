@@ -17,7 +17,7 @@ dbgstd_printf (
 
     time(time_now);
     time_local = localtime(time_now);
-    fprintf(stdout, STR_FMT_DATE_TIME,
+    fprintf(stdout, GENERAL_STR_FMT_DATE_TIME"|",
             LOCAL_YEAR, LOCAL_MON, LOCAL_DAY,
             LOCAL_HOUR, LOCAL_MIN, LOCAL_SEC);
 

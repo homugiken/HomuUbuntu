@@ -125,12 +125,15 @@ static int dbg_svr_log_init (DBG_SVR_LOG_CTL * const ctl, const int argc, char *
 /*____________________________________________________________________________*/
 /* DBG_SVR */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
+#define DBG_SVR_OPTL_TEST               "test"
+#define DBG_SVR_OPTC_TEST               't'
+#define DBG_SVR_OPTS_TEST               "test mode enable"
 #define DBG_SVR_OPTL_DBGMSG_SVR         "dbgmsg"
 #define DBG_SVR_OPTC_DBGMSG_SVR         'm'
 #define DBG_SVR_OPTS_DBGMSG_SVR         "dbgmsg server enable"
 /*························································*/
 typedef struct DBG_SVR_CFG {
-
+    bool                                test_enable;
     bool                                dbgmsg_svr_enable;
 } DBG_SVR_CFG;
 /*························································*/
@@ -165,8 +168,12 @@ int dbg_svr_init (DBG_SVR_CTL * const ctl, const int argc, char * const argvp[])
 /*························································*/
 #define MAIN_VERBOSE_MIN                DBG_VERBOSE_MIN
 #define MAIN_VERBOSE_MAX                DBG_VERBOSE_MAX
-#define MAIN_VERBOSE_DFT                DBG_VERBOSE_INF
+#define MAIN_VERBOSE_DFT                DBG_VERBOSE_DFT
 /*························································*/
+#define MAIN_SRC_NAME                   "DBG_SVR"
+/*························································*/
+static void main_signal_action (int signum);
+static int main_signal_init (void);
 static int main_loop (void);
 static void main_config_show (void);
 static int main_config (const int argc, char * const argv[]);
