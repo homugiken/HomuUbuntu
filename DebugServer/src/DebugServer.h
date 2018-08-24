@@ -38,22 +38,22 @@ static int dbg_svr_dir_init (DBG_SVR_DIR_CTL * const ctl, char * const path);
 #define DBG_SVR_IDX_NAME_LEN            32
 #define DBG_SVR_IDX_PATH_NAME_LEN       (GENERAL_PATH_LEN + DBG_SVR_IDX_NAME_LEN)
 /*························································*/
-typedef struct DBG_SVR_IDX {
+typedef struct DBG_SVR_IDX_CTL {
     FILE *                              fp;
+    char                                path_name[DBG_SVR_IDX_PATH_NAME_LEN];
     uint32_t                            create;
     uint32_t                            remove;
-    char                                path_name[DBG_SVR_IDX_PATH_NAME_LEN];
-} DBG_SVR_IDX;
+} DBG_SVR_IDX_CTL;
 /*························································*/
-static int dbg_svr_idx_increase_remove (DBG_SVR_IDX * const idx);
-static int dbg_svr_idx_increase_create (DBG_SVR_IDX * const idx);
-static int dbg_svr_idx_write (DBG_SVR_IDX * const idx);
-static int dbg_svr_idx_read (DBG_SVR_IDX * const idx);
-static void dbg_svr_idx_close (DBG_SVR_IDX * const idx);
-static int dbg_svr_idx_open_write (DBG_SVR_IDX * const idx);
-static int dbg_svr_idx_open_read (DBG_SVR_IDX * const idx);
-static void dbg_svr_idx_release (DBG_SVR_IDX * const idx);
-static int dbg_svr_idx_init (DBG_SVR_IDX * const idx, char * const path);
+static int dbg_svr_idx_increase_remove (DBG_SVR_IDX_CTL * const ctl);
+static int dbg_svr_idx_increase_create (DBG_SVR_IDX_CTL * const ctl);
+static int dbg_svr_idx_write (DBG_SVR_IDX_CTL * const ctl);
+static int dbg_svr_idx_read (DBG_SVR_IDX_CTL * const ctl);
+static void dbg_svr_idx_close (DBG_SVR_IDX_CTL * const ctl);
+static int dbg_svr_idx_open_write (DBG_SVR_IDX_CTL * const ctl);
+static int dbg_svr_idx_open_read (DBG_SVR_IDX_CTL * const ctl);
+static void dbg_svr_idx_release (DBG_SVR_IDX_CTL * const ctl);
+static int dbg_svr_idx_init (DBG_SVR_IDX_CTL * const ctl, char * const path);
 
 /*____________________________________________________________________________*/
 /* DBG_SVR_LOG */
@@ -94,7 +94,7 @@ typedef struct DBG_SVR_LOG_CTL {
     bool                                ready;
     DBG_SVR_LOG_CFG                     _cfg, * cfg;
     DBG_SVR_DIR_CTL                     _dir, * dir;
-    DBG_SVR_IDX                         _idx, * idx;
+    DBG_SVR_IDX_CTL                         _idx, * idx;
     FILE *                              fp;
     char                                name[DBG_SVR_LOG_NAME_LEN];
     char                                path_name[DBG_SVR_LOG_PATH_NAME_LEN];
