@@ -157,30 +157,5 @@ void dbg_svr_help (void);
 void dbg_svr_release (DBG_SVR_CTL * const ctl);
 int dbg_svr_init (DBG_SVR_CTL * const ctl, const int argc, char * const argvp[]);
 
-/*____________________________________________________________________________*/
-/* MAIN */
-/*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
-#define MAIN_OPTL_HELP                  "help"
-#define MAIN_OPTC_HELP                  'h'
-#define MAIN_OPTS_HELP                  "show help info"
-#define MAIN_OPTL_VERBOSE               "verbose"
-#define MAIN_OPTC_VERBOSE               'v'
-#define MAIN_OPTS_VERBOSE               "set verbosity level"
-/*························································*/
-#define MAIN_VERBOSE_MIN                DBG_VERBOSE_MIN
-#define MAIN_VERBOSE_MAX                DBG_VERBOSE_MAX
-#define MAIN_VERBOSE_DFT                DBG_VERBOSE_DFT
-/*························································*/
-#define MAIN_SRC_NAME                   "DBG_SVR"
-/*························································*/
-static void main_signal_action (int signum);
-static int main_signal_init (void);
-static int main_loop (void);
-static void main_config_show (void);
-static int main_config (const int argc, char * const argv[]);
-static void main_help (char * const name);
-static void main_exit (int ret);
-static int main_init (const int argc, char * const argv[]);
 
-/*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
 #endif /* DEBUGSERVER_H_ */

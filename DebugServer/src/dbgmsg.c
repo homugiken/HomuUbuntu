@@ -255,7 +255,6 @@ dbgmsg_svr_recv (
     ERR_NULL(ctl);
     ERR_FALSE(ctl->ready);
 
-    LOG("gverbose=%p", gverbose);
     ctl->msg_count = 0;
     for (uint32_t i = 0; i < DBGMSG_SVR_MSG_BUF_SIZE; i++)
     {
@@ -265,10 +264,6 @@ dbgmsg_svr_recv (
             break;
         }
         ctl->msg_count++;
-    }
-    if (ctl->msg_count > 0)
-    {
-        INF("msg_count=%u", ctl->msg_count);
     }
 
     ret = 0;

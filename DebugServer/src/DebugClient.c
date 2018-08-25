@@ -21,7 +21,6 @@ dbg_clnt_printf (
     va_end(vargs);
     text[DBG_CLNT_PRINTF_TEXT_LEN - 1] = '\0';
 
-    printf("%s\n", STRBOOL(gdbg_clnt->cfg->dbgmsg_clnt_enable));
     if (gdbg_clnt->cfg->dbgmsg_clnt_enable == true)
     {
         dbgmsg_clnt_printf(gdbg_clnt->dbgmsg_clnt, "%s", text);

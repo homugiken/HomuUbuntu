@@ -13,7 +13,7 @@
 /* DEBUG */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
 #define DBG_ENABLE_ALL                  1   /* ALL */
-#define DBG_ENABLE_DBGSTD               1   /* DBGSTD */
+#define DBG_ENABLE_DBGSTD               0   /* DBGSTD */
 #define DBG_ENABLE_DBG_CLNT             1   /* DBG_CLNT */
 /*························································*/
 #define DBG_ENABLE_ERR                  1   /* ERR */
@@ -31,17 +31,17 @@
 #define DBG_VERBOSE_MAX                 DBG_VERBOSE_TAG
 /*························································*/
 #define DBG_VERBOSE_DFT                 DBG_VERBOSE_INF
-extern uint32_t                         _gverbose, * const gverbose;
+extern uint32_t                         gverbose;
 extern DBG_CLNT_CTL                     _gdbg_clnt, * const gdbg_clnt;
 /*························································*/
 #if DBG_ENABLE_DBGSTD && DBG_ENABLE_ALL
-#define DBGSTD(fmt,...)                 dbgstd_printf("#%04d|%s:"fmt"\r\n",__LINE__,__FUNCTION__,##__VA_ARGS__)
+#define DBGSTD(fmt,...)                 dbgstd_printf("#%04d|%s:"fmt"\n",__LINE__,__FUNCTION__,##__VA_ARGS__)
 #else
 #define DBGSTD(fmt,...)
 #endif
 /*························································*/
 #if DBG_ENABLE_DBG_CLNT && DBG_ENABLE_ALL
-#define DBGCLNT(fmt,...)                dbg_clnt_printf("#%04d|%s:"fmt"\r\n",__LINE__,__FUNCTION__,##__VA_ARGS__)
+#define DBGCLNT(fmt,...)                dbg_clnt_printf("#%04d|%s:"fmt"\n",__LINE__,__FUNCTION__,##__VA_ARGS__)
 #else
 #define DBGCLNT(fmt,...)
 #endif
@@ -53,31 +53,31 @@ extern DBG_CLNT_CTL                     _gdbg_clnt, * const gdbg_clnt;
 #endif
 /*························································*/
 #if DBG_ENABLE_ALL && DBG_ENABLE_ERR    /* ERR */
-#define ERR(fmt,...)                    DO(if(*gverbose>=DBG_VERBOSE_ERR){DBG("ERR!"fmt,##__VA_ARGS__);})
+#define ERR(fmt,...)                    DO(if(gverbose>=DBG_VERBOSE_ERR){DBG("ERR!"fmt,##__VA_ARGS__);})
 #else
 #define ERR(fmt,...)
 #endif
 /*························································*/
 #if DBG_ENABLE_ALL && DBG_ENABLE_WRN    /* WRN */
-#define WRN(fmt,...)                    DO(if(*gverbose>=DBG_VERBOSE_WRN){DBG("WRN!"fmt,##__VA_ARGS__);})
+#define WRN(fmt,...)                    DO(if(gverbose>=DBG_VERBOSE_WRN){DBG("WRN!"fmt,##__VA_ARGS__);})
 #else
 #define WRN(fmt,...)
 #endif
 /*························································*/
 #if DBG_ENABLE_ALL && DBG_ENABLE_LOG    /* LOG */
-#define LOG(fmt,...)                    DO(if(*gverbose>=DBG_VERBOSE_LOG){DBG(fmt,##__VA_ARGS__);})
+#define LOG(fmt,...)                    DO(if(gverbose>=DBG_VERBOSE_LOG){DBG(fmt,##__VA_ARGS__);})
 #else
 #define LOG(fmt,...)
 #endif
 /*························································*/
 #if DBG_ENABLE_ALL && DBG_ENABLE_INF    /* INF */
-#define INF(fmt,...)                    DO(if(*gverbose>=DBG_VERBOSE_INF){DBG(fmt,##__VA_ARGS__);})
+#define INF(fmt,...)                    DO(if(gverbose>=DBG_VERBOSE_INF){DBG("INF"fmt,##__VA_ARGS__);})
 #else
 #define INF(fmt,...)
 #endif
 /*························································*/
 #if DBG_ENABLE_ALL && DBG_ENABLE_TAG    /* TAG */
-#define TAG(NAME)                       DO(if(*gverbose>=DBG_VERBOSE_TAG){DBG("<%s>",NAME);})
+#define TAG(NAME)                       DO(if(gverbose>=DBG_VERBOSE_TAG){DBG("<%s>",NAME);})
 #else
 #define TAG(NAME)
 #endif
