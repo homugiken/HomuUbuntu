@@ -70,7 +70,7 @@ static int dbg_svr_idx_init (DBG_SVR_IDX_CTL * const ctl, char * const path);
 #define DBG_SVR_LOG_NAME_LEN            32
 #define DBG_SVR_LOG_PATH_NAME_LEN       (DBG_SVR_DIR_PATH_NAME_LEN + DBG_SVR_LOG_NAME_LEN)
 /*························································*/
-#define DBG_SVR_LOG_REMOVE_NAME_FMT     "%s/dbg-%04u*.txt"
+#define DBG_SVR_LOG_REMOVE_NAME_FMT     "rm -vf %s/dbg-%04u*.txt"
 /*························································*/
 #define DBG_SVR_LOG_SIZEMB_MIN          1
 #define DBG_SVR_LOG_SIZEMB_MAX          10
@@ -80,7 +80,7 @@ static int dbg_svr_idx_init (DBG_SVR_IDX_CTL * const ctl, char * const path);
 #define DBG_SVR_LOG_COUNT_MAX           100
 #define DBG_SVR_LOG_COUNT_DFT           DBG_SVR_LOG_COUNT_MIN
 /*························································*/
-#define DBG_SVR_LOG_COMPILE_TIME_FMT    "[COMPILE_TIME=%s-%s]\r\n"
+#define DBG_SVR_LOG_MAKE_FMT            "[MAKE|DATE=%s-%s]\r\n"
 #define DBG_SVR_LOG_HEADER_FMT          "[LOG|PATH=%s|NAME=%s]\r\n"
 #define DBG_SVR_LOG_TRAILER_FMT         "[LOG|PATH=%s|NAME=%s]\r\n"
 #define DBG_SVR_LOG_HEADER_TIME_FMT     "[TIME|START=%04d/%02d/%02d-%02d:%02d:%02d]\r\n"
@@ -128,7 +128,7 @@ static int dbg_svr_log_init (DBG_SVR_LOG_CTL * const ctl, const int argc, char *
 #define DBG_SVR_OPTL_TEST               "test"
 #define DBG_SVR_OPTC_TEST               't'
 #define DBG_SVR_OPTS_TEST               "test mode enable"
-#define DBG_SVR_OPTL_DBGMSG_SVR         "dbgmsg"
+#define DBG_SVR_OPTL_DBGMSG_SVR         "msg"
 #define DBG_SVR_OPTC_DBGMSG_SVR         'm'
 #define DBG_SVR_OPTS_DBGMSG_SVR         "dbgmsg server enable"
 /*························································*/
@@ -147,6 +147,7 @@ typedef struct DBG_SVR_CTL {
     time_t                              time_last;
 } DBG_SVR_CTL;
 /*························································*/
+static int dbg_svr_test (DBG_SVR_CTL * const ctl);
 int dbg_svr_loop_job (DBG_SVR_CTL * const ctl);
 int dbg_svr_fprintf (DBG_SVR_CTL * const ctl);
 int dbg_svr_recv (DBG_SVR_CTL * const ctl);

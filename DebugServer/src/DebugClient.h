@@ -8,7 +8,7 @@
 /*____________________________________________________________________________*/
 /* DBG_CLNT */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
-#define DBG_CLNT_OPTL_DBGMSG_CLNT       "dbgmsg"
+#define DBG_CLNT_OPTL_DBGMSG_CLNT       "msg"
 #define DBG_CLNT_OPTC_DBGMSG_CLNT       'm'
 #define DBG_CLNT_OPTS_DBGMSG_CLNT       "dbgmsg client enable"
 /*························································*/

@@ -132,7 +132,9 @@ dbgmsg_config (
 
     if (strlen(cfg->key_path) < 1)
     {
-        snprintf(cfg->key_path, DBGMSG_KEY_PATH_LEN, "%s", DBGMSG_KEY_PATH_DFT);
+        // snprintf(cfg->key_path, DBGMSG_KEY_PATH_LEN, "%s", DBGMSG_KEY_PATH_DFT);
+        char *                          pwd;
+        pwd = getcwd(cfg->key_path, DBGMSG_KEY_PATH_LEN); ERR_NULL(pwd);
         INF("key_path=\"%s\"", cfg->key_path);
     }
 
@@ -176,6 +178,10 @@ dbgmsg_release (
     if (ctl->cfg != NULL)
     {
         free(ctl->cfg);
+    }
+    if (ctl->qid >= 0)
+    {
+        msgctl(ctl->qid, IPC_RMID, NULL);
     }
 
     MEMZ(ctl, sizeof(DBGMSG_CTL));
@@ -249,6 +255,7 @@ dbgmsg_svr_recv (
     ERR_NULL(ctl);
     ERR_FALSE(ctl->ready);
 
+    LOG("gverbose=%p", gverbose);
     ctl->msg_count = 0;
     for (uint32_t i = 0; i < DBGMSG_SVR_MSG_BUF_SIZE; i++)
     {

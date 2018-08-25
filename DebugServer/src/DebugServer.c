@@ -6,6 +6,8 @@
 /*____________________________________________________________________________*/
 /* GLOBAL */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
+uint32_t                                _gverbose = DBG_VERBOSE_DFT, * const gverbose = &_gverbose;
+DBG_CLNT_CTL                            _gdbg_clnt = {0}, * const gdbg_clnt = &(_gdbg_clnt);
 static DBG_SVR_CTL                      _gdbg_svr = {0}, * const gdbg_svr = &(_gdbg_svr);
 
 /*____________________________________________________________________________*/
@@ -109,9 +111,18 @@ dbg_svr_dir_init (
     int                                 ret = -1;
     ERR_NULL(ctl); ERR_NULL(path);
 
-    snprintf(ctl->path_name, DBG_SVR_DIR_PATH_NAME_LEN, "%s/%s",
-             ((strlen(path) > 1) ? path : DBG_SVR_DIR_PATH_DFT),
-             DBG_SVR_DIR_NAME_DFT);
+    if (strlen(path) > 1)
+    {
+        snprintf(ctl->path_name, DBG_SVR_DIR_PATH_NAME_LEN, "%s/%s",
+                 path, DBG_SVR_DIR_NAME_DFT);
+    }
+    else
+    {
+        char *                          pwd;
+        pwd = getcwd(ctl->path_name, GENERAL_PATH_LEN); ERR_NULL(pwd);
+        snprintf(&(ctl->path_name[strlen(ctl->path_name)]), DBG_SVR_DIR_PATH_NAME_LEN,
+                 "%s", DBG_SVR_DIR_NAME_DFT);
+    }
     LOG("path_name=\"%s\"", ctl->path_name);
 
     ret = dbg_svr_dir_open(ctl); WRN_NZERO(ret);
@@ -301,9 +312,18 @@ dbg_svr_idx_init (
     int                                 ret = -1;
     ERR_NULL(ctl); ERR_NULL(path);
 
-    snprintf(ctl->path_name, DBG_SVR_IDX_PATH_NAME_LEN, "%s/%s",
-             ((strlen(path) > 1) ? path : DBG_SVR_DIR_PATH_DFT),
-             DBG_SVR_IDX_NAME_DFT);
+    if (strlen(path) > 1)
+    {
+        snprintf(ctl->path_name, DBG_SVR_DIR_PATH_NAME_LEN, "%s/%s",
+                 path, DBG_SVR_IDX_NAME_DFT);
+    }
+    else
+    {
+        char *                          pwd;
+        pwd = getcwd(ctl->path_name, GENERAL_PATH_LEN); ERR_NULL(pwd);
+        snprintf(&(ctl->path_name[strlen(ctl->path_name)]), DBG_SVR_IDX_PATH_NAME_LEN,
+                 "%s/%s", DBG_SVR_DIR_NAME_DFT, DBG_SVR_IDX_NAME_DFT );
+    }
     LOG("path_name=\"%s\"", ctl->path_name);
 
     ret = dbg_svr_idx_read(ctl);
@@ -330,13 +350,14 @@ dbg_svr_log_remove_oldest (
     DBG_SVR_LOG_CTL * const             ctl)
 {   ENTR();
     int                                 ret = -1;
+    char                                cmd[DBG_SVR_LOG_PATH_NAME_LEN + 32] = {0};
     ERR_NULL(ctl);
     ERR_FALSE(ctl->ready);
 
-    snprintf(ctl->path_name, DBG_SVR_LOG_PATH_NAME_LEN, DBG_SVR_LOG_REMOVE_NAME_FMT,
+    snprintf(cmd, (DBG_SVR_LOG_PATH_NAME_LEN + 32), DBG_SVR_LOG_REMOVE_NAME_FMT,
              ctl->dir->path_name, ctl->idx->remove);
-    ret = remove(ctl->path_name); ERR_NZERO(ret);
-    LOG("remove=\"%s\"", ctl->path_name);
+    ret = system(cmd); ERR_NZERO(ret);
+    LOG("remove=\"%s\"", cmd);
     ret = dbg_svr_idx_increase_remove(ctl->idx); ERR_NZERO(ret);
 
     ret = 0;
@@ -357,7 +378,7 @@ dbg_svr_log_check_count (
     ctl->count = ((ctl->idx->create >= ctl->idx->remove) ? 0 : (DBG_SVR_IDX_MAX + 1)) + \
                  ctl->idx->create - ctl->idx->remove;
     LOG("count=%04u", ctl->count);
-    if (ctl->count >= ctl->cfg->limit_count)
+    while (ctl->count-- > ctl->cfg->limit_count)
     {
         ret = dbg_svr_log_remove_oldest(ctl); ERR_NZERO(ret);
     }
@@ -424,6 +445,7 @@ dbg_svr_log_open_next (
 
     ret = dbg_svr_log_name_next(ctl); ERR_NZERO(ret);
     ret = dbg_svr_log_open(ctl); ERR_NZERO(ret);
+    ret = dbg_svr_log_write_header(ctl); ERR_NZERO(ret);
     ret = dbg_svr_idx_increase_create(ctl->idx); ERR_NZERO(ret);
     ret = dbg_svr_log_check_count(ctl); ERR_NZERO(ret);
 
@@ -483,9 +505,9 @@ dbg_svr_log_write_header (
 
     ctl->time_now = time(NULL);
     ctl->time_local = localtime(&(ctl->time_now));
-    ret = fprintf(ctl->fp, DBG_SVR_LOG_COMPILE_TIME_FMT, __DATE__, __TIME__); WRN_NPOS(ret);
-    ret = fprintf(ctl->fp, DBG_SVR_LOG_HEADER_FMT, ctl->dir->path_name, ctl->name); WRN_NPOS(ret);
     ret = fprintf(ctl->fp, DBG_SVR_IDX_FMT, ctl->idx->create, ctl->idx->remove); WRN_NPOS(ret);
+    ret = fprintf(ctl->fp, DBG_SVR_LOG_MAKE_FMT, __DATE__, __TIME__); WRN_NPOS(ret);
+    ret = fprintf(ctl->fp, DBG_SVR_LOG_HEADER_FMT, ctl->dir->path_name, ctl->name); WRN_NPOS(ret);
     ret = fprintf(ctl->fp, DBG_SVR_LOG_HEADER_TIME_FMT,
                   ctl->LOCAL_YEAR, ctl->LOCAL_MON, ctl->LOCAL_DAY,
                   ctl->LOCAL_HOUR, ctl->LOCAL_MIN, ctl->LOCAL_SEC); WRN_NPOS(ret);
@@ -621,7 +643,8 @@ dbg_svr_log_config (
 
     if (strnlen(cfg->path, GENERAL_PATH_LEN) < 1)
     {
-        snprintf(cfg->path, GENERAL_PATH_LEN, "%s", DBG_SVR_DIR_PATH_DFT);
+        char *                          pwd;
+        pwd = getcwd(cfg->path, GENERAL_PATH_LEN); ERR_NULL(pwd);
         cfg->path[GENERAL_PATH_LEN - 1] = '\0';
         INF("path=\"%s\"", cfg->path);
     }
@@ -671,14 +694,6 @@ dbg_svr_log_release (
 {   ENTR();
     ERR_NULL(ctl);
 
-    if (ctl->dir != NULL)
-    {
-        dbg_svr_dir_release(ctl->dir);
-    }
-    if (ctl->idx != NULL)
-    {
-        dbg_svr_idx_release(ctl->idx);
-    }
     if (ctl->fp != NULL)
     {
         dbg_svr_log_close(ctl);
@@ -686,6 +701,16 @@ dbg_svr_log_release (
     if (ctl->cfg != NULL)
     {
         free(ctl->cfg);
+    }
+
+    if (ctl->dir != NULL)
+    {
+        dbg_svr_dir_release(ctl->dir);
+    }
+
+    if (ctl->idx != NULL)
+    {
+        dbg_svr_idx_release(ctl->idx);
     }
     MEMZ(ctl, sizeof(DBG_SVR_LOG_CTL));
 
@@ -730,6 +755,30 @@ LERROR;
 /*____________________________________________________________________________*/
 /* DBG_SVR */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
+static int
+dbg_svr_test (
+    DBG_SVR_CTL * const                 ctl)
+{   ENTR();
+    int                                 ret = -1;
+    static time_t                       time_now = 0;
+    static time_t                       time_last = 0;
+    ERR_NULL(ctl);
+    ERR_FALSE(ctl->ready);
+
+    time_now = time(NULL);
+    if (time_now != time_last)
+    {
+        time_last = time_now;
+        LOG("time_now=%u", time_now);
+    }
+
+    ret = 0;
+LEXIT;
+    return(ret);
+LERROR;
+    GOEXIT;
+}
+/*························································*/
 int
 dbg_svr_loop_job (
     DBG_SVR_CTL * const                 ctl)
@@ -738,21 +787,26 @@ dbg_svr_loop_job (
     ERR_NULL(ctl);
     ERR_FALSE(ctl->ready);
 
+    if (ctl->cfg->test_enable)
+    {
+        ret = dbg_svr_test(ctl); WRN_NZERO(ret);
+    }
+#if 0
+    PAUSE();
+#endif
+
     ret = dbg_svr_recv(ctl); WRN_NZERO(ret);
     if (ret == 0)
     {
         ret = dbg_svr_fprintf(ctl); WRN_NZERO(ret);
     }
+#if 0
+    PAUSE();
+#endif
 
     ctl->time_now = time(NULL);
     if ((ctl->time_now < ctl->time_last) || ((ctl->time_now - ctl->time_last) >= 60))
     {
-        if (ctl->cfg->test_enable)
-        {
-            ctl->time_local = localtime(&(ctl->time_now));
-            LOG(GENERAL_STR_FMT_DATE_TIME, ctl->LOCAL_YEAR, ctl->LOCAL_MON, ctl->LOCAL_DAY, ctl->LOCAL_HOUR, ctl->LOCAL_MIN, ctl->LOCAL_SEC);
-        }
-
         ctl->time_last = ctl->time_now;
         dbg_svr_log_flush(ctl->log);
         ret = dbg_svr_log_check_size(ctl->log); WRN_NZERO(ret);
@@ -799,6 +853,7 @@ dbg_svr_recv (
 
     if ((ctl->cfg->dbgmsg_svr_enable == true) && (ctl->dbgmsg_svr->ready == true))
     {
+        printf("here\n");
         ret = dbgmsg_svr_recv(ctl->dbgmsg_svr); WRN_NZERO(ret);
     }
 
@@ -852,6 +907,7 @@ dbg_svr_config (
     }
     cfg = ctl->cfg;
 
+    opterr = 0;
     optind = 0;
     while (1)
     {
@@ -936,15 +992,19 @@ dbg_svr_init (
     ctl->log = &(ctl->_log);
     ret = dbg_svr_log_init(ctl->log, argc, argv); ERR_NZERO(ret);
     ret = dbg_svr_log_open_next(ctl->log); ERR_NZERO(ret);
+#if 0
+    PAUSE();
+#endif
 
     if (ctl->cfg->dbgmsg_svr_enable == true)
     {
         ctl->dbgmsg_svr = &(ctl->_dbgmsg_svr);
+        ERR_NULL(ctl->dbgmsg_svr);
         ret = dbgmsg_svr_init(ctl->dbgmsg_svr, argc, argv); ERR_NZERO(ret);
     }
 
-    ctl->time_last = time(NULL);
-    ctl->time_now = ctl->time_last;
+    ctl->time_now = time(NULL);
+    ctl->time_last = ctl->time_now;
 
     ctl->ready = true;
     LOG("ready=%s", STRBOOL(ctl->ready));
@@ -1026,7 +1086,7 @@ static void
 main_config_show (void)
 {   ENTR();
 
-    LOG("gverbose=%d", gverbose);
+    LOG("gverbose=%u", *gverbose);
 
 LEXIT;
     return;
@@ -1069,15 +1129,15 @@ main_config (
             break;
         case MAIN_OPTC_VERBOSE:
             ERR_OPTARG_INVALID();
-            gverbose = strtoul(optarg, NULL, 0);
-            INF("gverbose=%u", gverbose);
+            *gverbose = strtoul(optarg, NULL, 0);
+            INF("gverbose=%u", *gverbose);
             break;
         default:
             break;
         }
     }
 
-    REGULATE(gverbose, MAIN_VERBOSE_MIN, MAIN_VERBOSE_MAX);
+    REGULATE(*gverbose, MAIN_VERBOSE_MIN, MAIN_VERBOSE_MAX);
 
     ret = 0;
 LEXIT;
@@ -1138,6 +1198,9 @@ main_init (
 
     ret = main_config(argc, argv); ERR_NZERO(ret);
     main_config_show();
+#if 0
+    PAUSE();
+#endif
 
     ERR_NULL(gdbg_svr);
     ret = dbg_svr_init(gdbg_svr, argc, argv); ERR_NZERO(ret);
@@ -1163,16 +1226,24 @@ main (
         main_exit(0);
     }
 
-    gverbose = MAIN_VERBOSE_DFT;
-    ret = main_signal_init(); ERR_NZERO(ret);
+    *gverbose = MAIN_VERBOSE_DFT;
+    LOG("gverbose=%p", gverbose);
 
+    ret = main_signal_init(); ERR_NZERO(ret);
 
     ERR_NULL(gdbg_clnt);
     MEMZ(gdbg_clnt, sizeof(DBG_CLNT_CTL));
     ret = dbg_clnt_init(gdbg_clnt, argc, argv); ERR_NZERO(ret);
     ret = dbg_clnt_set_src_name(gdbg_clnt, MAIN_SRC_NAME); WRN_NZERO(ret);
+#if 0
+    PAUSE();
+#endif
 
     ret = main_init(argc, argv); ERR_NZERO(ret);
+#if 0
+    PAUSE();
+#endif
+
     ret = main_loop(); ERR_NZERO(ret);
 
     ret = 0;
