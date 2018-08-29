@@ -21,6 +21,9 @@
 /*························································*/
 #define MAIN_SRC_NAME                   "DBG_SVR"
 /*························································*/
+#define MAIN_LOOP_STEP_MS               1
+#define MAIN_LOOP_STEP_US               (MAIN_LOOP_STEP_MS * 1000)
+/*························································*/
 static void main_signal_action (int signum);
 static int main_signal_init (void);
 static int main_loop (void);

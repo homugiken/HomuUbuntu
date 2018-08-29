@@ -14,6 +14,8 @@
 /*························································*/
 #define DBG_CLNT_PRINTF_TEXT_LEN        2048
 /*························································*/
+#define DBG_CLNT_SRC_NAME_LEN           32
+/*························································*/
 typedef struct DBG_CLNT_CFG {
     bool                                dbgmsg_clnt_enable;
 } DBG_CLNT_CFG;
@@ -21,6 +23,7 @@ typedef struct DBG_CLNT_CFG {
 typedef struct DBG_CLNT_CTL {
     bool                                ready;
     DBG_CLNT_CFG                        * cfg;
+    char                                src_name[DBG_CLNT_SRC_NAME_LEN];
     DBGMSG_CLNT_CTL                     _dbgmsg_clnt, * dbgmsg_clnt;
 } DBG_CLNT_CTL;
 /*························································*/

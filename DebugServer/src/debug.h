@@ -13,7 +13,7 @@
 /* DEBUG */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
 #define DBG_ENABLE_ALL                  1   /* ALL */
-#define DBG_ENABLE_DBGSTD               0   /* DBGSTD */
+#define DBG_ENABLE_DBGSTD               1   /* DBGSTD */
 #define DBG_ENABLE_DBG_CLNT             1   /* DBG_CLNT */
 /*························································*/
 #define DBG_ENABLE_ERR                  1   /* ERR */
@@ -71,7 +71,7 @@ extern DBG_CLNT_CTL                     _gdbg_clnt, * const gdbg_clnt;
 #endif
 /*························································*/
 #if DBG_ENABLE_ALL && DBG_ENABLE_INF    /* INF */
-#define INF(fmt,...)                    DO(if(gverbose>=DBG_VERBOSE_INF){DBG("INF"fmt,##__VA_ARGS__);})
+#define INF(fmt,...)                    DO(if(gverbose>=DBG_VERBOSE_INF){DBG("INF:"fmt,##__VA_ARGS__);})
 #else
 #define INF(fmt,...)
 #endif

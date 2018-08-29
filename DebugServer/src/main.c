@@ -47,7 +47,7 @@ main_signal_init (void)
     ret = sigemptyset(&(sigact->sa_mask)); ERR_NZERO(ret);
 
     ret = sigaction(SIGINT, sigact, NULL); ERR_NZERO(ret);
-    LOG("ctrl+c to quit");
+    INF("ctrl+c to quit");
 
     ret = sigaction(SIGTERM, sigact, NULL); ERR_NZERO(ret);
 
@@ -66,7 +66,7 @@ main_loop (void)
 
     while (1)
     {
-        usleep(1000);
+        usleep(MAIN_LOOP_STEP_US);
 
         if (gdbg_svr->ready == true)
         {
@@ -107,7 +107,6 @@ main_config (
     };
     ERR_NPOS(argc); ERR_NULL(argv);
 
-
     LOG("argc=%d", argc);
     for (int i = 1; i < argc; i++)
     {
@@ -138,6 +137,8 @@ main_config (
 
     REGULATE(gverbose, MAIN_VERBOSE_MIN, MAIN_VERBOSE_MAX);
 
+    main_config_show();
+
     ret = 0;
 LEXIT;
     return(ret);
@@ -159,6 +160,7 @@ main_help (
            DBG_VERBOSE_MIN, DBG_VERBOSE_MAX);
 
     dbg_clnt_help();
+
     dbg_svr_help();
 
 LEXIT;
@@ -172,7 +174,7 @@ main_exit (
     int                                 ret)
 {   ENTR();
 
-    LOG("ret=%d", ret);
+    WRN_NZERO(ret);
 
     if (gdbg_clnt != NULL)
     {
@@ -195,10 +197,16 @@ main_init (
     int                                 ret = -1;
     ERR_NPOS(argc); ERR_NULL(argv);
 
+    ERR_NULL(gdbg_clnt);
+    MEMZ(gdbg_clnt, sizeof(DBG_CLNT_CTL));
+    ret = dbg_clnt_init(gdbg_clnt, argc, argv); ERR_NZERO(ret);
+
+    ret = main_signal_init(); ERR_NZERO(ret);
+
     ret = main_config(argc, argv); ERR_NZERO(ret);
-    main_config_show();
 
     ERR_NULL(gdbg_svr);
+    MEMZ(gdbg_svr, sizeof(DBG_SVR_CTL));
     ret = dbg_svr_init(gdbg_svr, argc, argv); ERR_NZERO(ret);
 
     ret = 0;
@@ -219,15 +227,12 @@ main (
     if (argc < 2)
     {
         main_help(argv[0]);
-        main_exit(0);
+        ret = 0;
+        GOEXIT;
     }
-    ret = main_signal_init(); ERR_NZERO(ret);
-
-    MEMZ(gdbg_clnt, sizeof(DBG_CLNT_CTL));
-    ret = dbg_clnt_init(gdbg_clnt, argc, argv); ERR_NZERO(ret);
-    ret = dbg_clnt_set_src_name(gdbg_clnt, MAIN_SRC_NAME); WRN_NZERO(ret);
 
     ret = main_init(argc, argv); ERR_NZERO(ret);
+
     ret = main_loop(); ERR_NZERO(ret);
 
     ret = 0;
