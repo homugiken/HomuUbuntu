@@ -6,52 +6,6 @@
 /*____________________________________________________________________________*/
 /* DBGMSG */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
-static int
-dbgmsg_fprintf (
-    FILE * const                        fp,
-    DBGMSG_MSG * const                  msg)
-{   ENTR();
-    int                                 ret = -1;
-    static struct tm *                  time_local;
-    ERR_NULL(fp); ERR_NULL(msg);
-
-    time_local = localtime(&(msg->src_time));
-    ret = fprintf(fp, DBGMSG_MSG_FMT,
-                  LOCAL_YEAR, LOCAL_MON, LOCAL_DAY,
-                  LOCAL_HOUR, LOCAL_MIN, LOCAL_SEC,
-                  msg->src_pid, msg->src_name, msg->text); ERR_NPOS(ret);
-
-    ret = 0;
-LEXIT;
-    return(ret);
-LERROR;
-    GOEXIT;
-}
-/*························································*/
-static int
-dbgmsg_recv(
-    DBGMSG_CTL * const                  ctl,
-    DBGMSG_MSG * const                  msg)
-{   ENTR();
-    int                                 ret = -1;
-    ERR_NULL(ctl); ERR_NULL(msg);
-    ERR_FALSE(ctl->ready);
-
-    MEMZ(msg, sizeof(DBGMSG_MSG));
-    ret = msgrcv(ctl->qid, msg, (sizeof(DBGMSG_MSG) - sizeof(long)), 0, (IPC_NOWAIT | MSG_NOERROR));
-    if (ret < 1)
-    {
-        ret = -1;
-        GOEXIT;
-    }
-
-    ret = 0;
-LEXIT;
-    return(ret);
-LERROR;
-    GOEXIT;
-}
-/*························································*/
 static void
 dbgmsg_config_show (
     DBGMSG_CFG * const                  cfg)
@@ -76,8 +30,8 @@ dbgmsg_config (
 {   ENTR();
     int                                 ret = -1;
     DBGMSG_CFG *                        cfg = NULL;
-    int                                 optchar;
-    int                                 optindex;
+    char *                              pwd;
+    int                                 optchar, optindex;
     struct option                       optlist[] =
     {
         {DBGMSG_OPTL_KEY,               required_argument, 0, DBGMSG_OPTC_KEY},
@@ -132,23 +86,21 @@ dbgmsg_config (
 
     if (strlen(cfg->key_path) < 1)
     {
-        // snprintf(cfg->key_path, DBGMSG_KEY_PATH_LEN, "%s", DBGMSG_KEY_PATH_DFT);
-        char *                          pwd;
         pwd = getcwd(cfg->key_path, DBGMSG_KEY_PATH_LEN); ERR_NULL(pwd);
         INF("key_path=\"%s\"", cfg->key_path);
     }
-
     if ((cfg->key_id < DBGMSG_KEY_ID_MIN) || (cfg->key_id > DBGMSG_KEY_ID_MAX))
     {
         cfg->key_id = DBGMSG_KEY_ID_DFT;
         INF("key_id=0x%02X", cfg->key_id);
     }
-
     if (cfg->key < 1)
     {
         cfg->key = ftok(cfg->key_path, cfg->key_id); ERR_NEG(cfg->key);
         INF("key=0x%X", cfg->key);
     }
+
+    dbgmsg_config_show(ctl->cfg);
 
     ret = 0;
 LEXIT;
@@ -183,7 +135,6 @@ dbgmsg_release (
     {
         msgctl(ctl->qid, IPC_RMID, NULL);
     }
-
     MEMZ(ctl, sizeof(DBGMSG_CTL));
     ctl->qid = -1;
 
@@ -207,7 +158,6 @@ dbgmsg_init (
         dbgmsg_release(ctl);
     }
     ret = dbgmsg_config(ctl, argc, argv); ERR_NZERO(ret);
-    dbgmsg_config_show(ctl->cfg);
 
     ctl->qid = msgget(ctl->cfg->key, IPC_CREAT); ERR_NEG(ctl->qid);
     LOG("qid=0x%08X", ctl->qid);
@@ -237,7 +187,12 @@ dbgmsg_svr_fprintf (
 
     for (uint32_t i = 0; i < ctl->msg_count; i++)
     {
-        ret = dbgmsg_fprintf(fp, &(ctl->msg_buf[i])); WRN_NZERO(ret);
+        ctl->msg = &(ctl->msg_buf[i]);
+        ctl->time_local = localtime(&(ctl->msg->src_time));
+        ret = fprintf(fp, DBGMSG_MSG_FMT,
+                      ctl->LOCAL_YEAR, ctl->LOCAL_MON, ctl->LOCAL_DAY,
+                      ctl->LOCAL_HOUR, ctl->LOCAL_MIN, ctl->LOCAL_SEC,
+                      ctl->msg->src_pid, ctl->msg->src_name, ctl->msg->text); WRN_NPOS(ret);
     }
 
     ret = 0;
@@ -258,8 +213,10 @@ dbgmsg_svr_recv (
     ctl->msg_count = 0;
     for (uint32_t i = 0; i < DBGMSG_SVR_MSG_BUF_SIZE; i++)
     {
-        ret = dbgmsg_recv(ctl->dbgmsg, &(ctl->msg_buf[i]));
-        if (ret != 0)
+        ret = msgrcv(ctl->dbgmsg->qid, &(ctl->msg_buf[i]),
+                     (sizeof(DBGMSG_MSG) - sizeof(long)), 0,
+                     (IPC_NOWAIT | MSG_NOERROR));
+        if (ret < 1)
         {
             break;
         }
@@ -278,6 +235,7 @@ dbgmsg_svr_help (void)
 {   ENTR();
 
     printf("dbgmsg_svr:\r\n");
+
     dbgmsg_help();
 
 LEXIT;
@@ -294,7 +252,6 @@ dbgmsg_svr_release (
     {
         dbgmsg_release(ctl->dbgmsg);
     }
-
     MEMZ(ctl, sizeof(DBGMSG_SVR_CTL));
 
 LEXIT;
@@ -361,8 +318,7 @@ dbgmsg_clnt_printf (
     ret = msgsnd(ctl->dbgmsg->qid, msg, (sizeof(DBGMSG_MSG) - sizeof(long)), IPC_NOWAIT);
     if (ret != 0)
     {
-        dbgmsg_fprintf(stdout, msg);
-        DBGSTD("msgsnd ret=%d!=0", ret);
+        DBGSTD("ERR!msgsnd ret=%d!=0", ret);
     }
 }
 /*························································*/
@@ -390,6 +346,7 @@ dbgmsg_clnt_help (void)
 {   ENTR();
 
     printf("dbgmsg_clnt:\r\n");
+
     dbgmsg_help();
 
 LEXIT;
@@ -406,7 +363,6 @@ dbgmsg_clnt_release (
     {
         dbgmsg_release(ctl->dbgmsg);
     }
-
     MEMZ(ctl, sizeof(DBGMSG_CLNT_CTL));
 
 LEXIT;
@@ -434,8 +390,6 @@ dbgmsg_clnt_init (
 
     ctl->src_pid = getpid(); ERR_NPOS(ctl->src_pid);
     LOG("src_pid=%d", ctl->src_pid);
-
-    ret = dbgmsg_clnt_set_src_name(ctl, DBGMSG_CLNT_SRC_NAME_DFT); ERR_NZERO(ret);
 
     ctl->ready = true;
     LOG("ready=%s", STRBOOL(ctl->ready));

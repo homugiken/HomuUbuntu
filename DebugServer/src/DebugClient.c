@@ -37,9 +37,13 @@ dbg_clnt_set_src_name (
     ERR_NULL(ctl); ERR_NULL(name);
     ERR_FALSE(ctl->ready);
 
+    snprintf(ctl->src_name, DBG_CLNT_SRC_NAME_LEN, "%s", name);
+    ctl->src_name[DBG_CLNT_SRC_NAME_LEN - 1] = '\0';
+    LOG("src_name=\"%s\"", ctl->src_name);
+
     if (ctl->cfg->dbgmsg_clnt_enable == true)
     {
-        ret = dbgmsg_clnt_set_src_name(ctl->dbgmsg_clnt, name); ERR_NZERO(ret);
+        ret = dbgmsg_clnt_set_src_name(ctl->dbgmsg_clnt, ctl->src_name); ERR_NZERO(ret);
     }
 
     ret = 0;
@@ -71,11 +75,9 @@ dbg_clnt_config (
 {   ENTR();
     int                                 ret = -1;
     DBG_CLNT_CFG *                      cfg = NULL;
-    int                                 optchar;
-    int                                 optindex;
+    int                                 optchar, optindex;
     struct option                       optlist[] =
     {
-        {MAIN_OPTL_HELP,                no_argument,        0, MAIN_OPTC_HELP},
         {DBG_CLNT_OPTL_DBGMSG_CLNT,     no_argument,        0, DBG_CLNT_OPTC_DBGMSG_CLNT},
         {0, 0, 0, 0}
     };
@@ -100,11 +102,6 @@ dbg_clnt_config (
 
         switch (optchar)
         {
-        case MAIN_OPTC_HELP:
-            dbg_clnt_release(ctl);
-            ret = 0;
-            GOEXIT;
-            break;
         case DBG_CLNT_OPTC_DBGMSG_CLNT:
             cfg->dbgmsg_clnt_enable = true;
             INF("dbgmsg_clnt_enable=%s", STRBOOL(cfg->dbgmsg_clnt_enable));
@@ -115,10 +112,6 @@ dbg_clnt_config (
     }
 
     dbg_clnt_config_show(ctl->cfg);
-
-    snprintf(ctl->src_name, DBG_CLNT_SRC_NAME_LEN, "%s", MAIN_SRC_NAME);
-    ctl->src_name[DBG_CLNT_SRC_NAME_LEN - 1] = '\0';
-    INF("ctl->src_name=\"%s\"", ctl->src_name);
 
     ret = 0;
 LEXIT;
@@ -132,7 +125,8 @@ dbg_clnt_help (void)
 {   ENTR();
 
     printf("dbg_clnt:\r\n");
-    printf("-%c/--%s\t%s\r\n", DBG_CLNT_OPTC_DBGMSG_CLNT, DBG_CLNT_OPTL_DBGMSG_CLNT, DBG_CLNT_OPTS_DBGMSG_CLNT);
+    printf("-%c/--%s\t%s\r\n",
+           DBG_CLNT_OPTC_DBGMSG_CLNT, DBG_CLNT_OPTL_DBGMSG_CLNT, DBG_CLNT_OPTS_DBGMSG_CLNT);
 
     dbgmsg_clnt_help();
 
@@ -150,7 +144,6 @@ dbg_clnt_release (
     {
         dbgmsg_clnt_release(ctl->dbgmsg_clnt);
     }
-
     MEMZ(ctl, sizeof(DBG_CLNT_CTL));
 
 LEXIT;
@@ -173,12 +166,8 @@ dbg_clnt_init (
         dbg_clnt_release(ctl);
     }
     ret = dbg_clnt_config(ctl, argc, argv); ERR_NZERO(ret);
-    if (ctl->cfg == NULL)
-    {
-        ret = 0;
-        GOEXIT;
-    }
 
+    ERR_NULL(ctl->cfg);
     if (ctl->cfg->dbgmsg_clnt_enable == true)
     {
         ctl->dbgmsg_clnt = &(ctl->_dbgmsg_clnt);

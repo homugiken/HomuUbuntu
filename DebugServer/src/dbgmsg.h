@@ -29,7 +29,7 @@
 #define DBGMSG_KEY_ID_MAX               0xFF
 #define DBGMSG_KEY_ID_DFT               DBGMSG_KEY_ID_MIN
 /*························································*/
-#define DBGMSG_MSG_FMT                  GENERAL_STR_FMT_DATE_TIME"|P%04d|%s|%s\r\n"
+#define DBGMSG_MSG_FMT                  GENERAL_STR_FMT_DATE_TIME"|P%04d|%s|%s"
 /*························································*/
 typedef struct DBGMSG_MSG {
     long                                type;
@@ -51,8 +51,6 @@ typedef struct DBGMSG_CTL {
     int                                 qid;
 } DBGMSG_CTL;
 /*························································*/
-static int dbgmsg_fprintf (FILE * const fp, DBGMSG_MSG * const msg);
-static int dbgmsg_recv (DBGMSG_CTL * const ctl, DBGMSG_MSG * const msg);
 static void dbgmsg_config_show (DBGMSG_CFG * const cfg);
 static int dbgmsg_config (DBGMSG_CTL * const ctl, const int argc, char * const argv[]);
 static void dbgmsg_help (void);
@@ -62,13 +60,15 @@ static int dbgmsg_init (DBGMSG_CTL * const ctl, const int argc, char * const arg
 /*____________________________________________________________________________*/
 /* DBGMSG_SVR */
 /*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
-#define DBGMSG_SVR_MSG_BUF_SIZE         10
+#define DBGMSG_SVR_MSG_BUF_SIZE         100
 /*························································*/
 typedef struct DBGMSG_SVR_CTL {
     bool                                ready;
-    DBGMSG_CTL                          _dbgmsg, * dbgmsg;
     DBGMSG_MSG                          msg_buf[DBGMSG_SVR_MSG_BUF_SIZE];
     uint32_t                            msg_count;
+    DBGMSG_MSG *                        msg;
+    struct tm *                         time_local;
+    DBGMSG_CTL                          _dbgmsg, * dbgmsg;
 } DBGMSG_SVR_CTL;
 /*························································*/
 int dbgmsg_svr_fprintf (DBGMSG_SVR_CTL * const ctl, FILE * const fp);
@@ -85,9 +85,9 @@ int dbgmsg_svr_init (DBGMSG_SVR_CTL * const ctl, const int argc, char * const ar
 typedef struct DBGMSG_CLNT_CTL {
     bool                                ready;
     va_list                             vargs;
-    DBGMSG_CTL                          _dbgmsg, * dbgmsg;
     pid_t                               src_pid;
     char                                src_name[DBGMSG_SRC_NAME_LEN];
+    DBGMSG_CTL                          _dbgmsg, * dbgmsg;
 } DBGMSG_CLNT_CTL;
 /*························································*/
 void dbgmsg_clnt_printf (DBGMSG_CLNT_CTL * const ctl, const char * fmt, ...);

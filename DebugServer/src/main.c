@@ -97,8 +97,7 @@ main_config (
     char * const                        argv[])
 {   ENTR();
     int                                 ret = -1;
-    int                                 optchar;
-    int                                 optindex;
+    int                                 optchar, optindex;
     struct option                       optlist[] =
     {
         {MAIN_OPTL_HELP,                no_argument,        0, MAIN_OPTC_HELP},
@@ -106,12 +105,6 @@ main_config (
         {0, 0, 0, 0}
     };
     ERR_NPOS(argc); ERR_NULL(argv);
-
-    LOG("argc=%d", argc);
-    for (int i = 1; i < argc; i++)
-    {
-        LOG("argv[%d]=\"%s\"", i, argv[i]);
-    }
 
     opterr = 0;
     optind = 0;
@@ -160,7 +153,6 @@ main_help (
            DBG_VERBOSE_MIN, DBG_VERBOSE_MAX);
 
     dbg_clnt_help();
-
     dbg_svr_help();
 
 LEXIT;
@@ -197,13 +189,19 @@ main_init (
     int                                 ret = -1;
     ERR_NPOS(argc); ERR_NULL(argv);
 
+    ret = main_config(argc, argv); ERR_NZERO(ret);
+    ret = main_signal_init(); ERR_NZERO(ret);
+
     ERR_NULL(gdbg_clnt);
     MEMZ(gdbg_clnt, sizeof(DBG_CLNT_CTL));
     ret = dbg_clnt_init(gdbg_clnt, argc, argv); ERR_NZERO(ret);
+    ret = dbg_clnt_set_src_name(gdbg_clnt, MAIN_SRC_NAME);
 
-    ret = main_signal_init(); ERR_NZERO(ret);
-
-    ret = main_config(argc, argv); ERR_NZERO(ret);
+    LOG("argc=%d", argc);
+    for (int i = 1; i < argc; i++)
+    {
+        LOG("argv[%d]=\"%s\"", i, argv[i]);
+    }
 
     ERR_NULL(gdbg_svr);
     MEMZ(gdbg_svr, sizeof(DBG_SVR_CTL));
@@ -227,12 +225,11 @@ main (
     if (argc < 2)
     {
         main_help(argv[0]);
-        ret = 0;
+        main_exit(0);
         GOEXIT;
     }
 
     ret = main_init(argc, argv); ERR_NZERO(ret);
-
     ret = main_loop(); ERR_NZERO(ret);
 
     ret = 0;
