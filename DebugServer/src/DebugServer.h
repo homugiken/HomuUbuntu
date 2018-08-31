@@ -80,7 +80,7 @@ static int dbg_svr_idx_init (DBG_SVR_IDX_CTL * const ctl, char * const path);
 #define DBG_SVR_LOG_COUNT_MAX           100
 #define DBG_SVR_LOG_COUNT_DFT           DBG_SVR_LOG_COUNT_MIN
 /*························································*/
-#define DBG_SVR_LOG_MAKE_FMT            "[MAKE|DATE=%s-%s]\r\n"
+#define DBG_SVR_LOG_MAKE_FMT            "[MAKE|DATE=%s-%s|GIT=%s]\r\n"
 #define DBG_SVR_LOG_PATH_NAME_FMT       "[LOG|PATH=%s|NAME=%s]\r\n"
 #define DBG_SVR_LOG_START_TIME_FMT      "[TIME|START=%04d/%02d/%02d-%02d:%02d:%02d]\r\n"
 #define DBG_SVR_LOG_END_TIME_FMT        "[TIME|END=%04d/%02d/%02d-%02d:%02d:%02d]\r\n"

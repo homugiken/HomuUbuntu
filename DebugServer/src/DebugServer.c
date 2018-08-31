@@ -484,8 +484,8 @@ dbg_svr_log_write_trailer (
     fprintf(ctl->fp, DBG_SVR_LOG_END_TIME_FMT,
                   ctl->LOCAL_YEAR, ctl->LOCAL_MON, ctl->LOCAL_DAY,
                   ctl->LOCAL_HOUR, ctl->LOCAL_MIN, ctl->LOCAL_SEC);
-    fprintf(ctl->fp, DBG_SVR_LOG_PATH_NAME_FMT, ctl->dir->path_name, ctl->name);
     fprintf(ctl->fp, DBG_SVR_IDX_FMT, ctl->idx->create, ctl->idx->remove);
+    fprintf(ctl->fp, DBG_SVR_LOG_PATH_NAME_FMT, ctl->dir->path_name, ctl->name);
     dbg_svr_log_flush(ctl);
 
     ret = 0;
@@ -505,9 +505,9 @@ dbg_svr_log_write_header (
 
     ctl->time_now = time(NULL);
     ctl->time_local = localtime(&(ctl->time_now));
-    fprintf(ctl->fp, DBG_SVR_LOG_MAKE_FMT, __DATE__, __TIME__);
-    fprintf(ctl->fp, DBG_SVR_IDX_FMT, ctl->idx->create, ctl->idx->remove);
+    fprintf(ctl->fp, DBG_SVR_LOG_MAKE_FMT, __DATE__, __TIME__, GITCOMMIT);
     fprintf(ctl->fp, DBG_SVR_LOG_PATH_NAME_FMT, ctl->dir->path_name, ctl->name);
+    fprintf(ctl->fp, DBG_SVR_IDX_FMT, ctl->idx->create, ctl->idx->remove);
     fprintf(ctl->fp, DBG_SVR_LOG_START_TIME_FMT,
             ctl->LOCAL_YEAR, ctl->LOCAL_MON, ctl->LOCAL_DAY,
             ctl->LOCAL_HOUR, ctl->LOCAL_MIN, ctl->LOCAL_SEC);
