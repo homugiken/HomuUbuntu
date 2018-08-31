@@ -210,7 +210,7 @@ dbg_svr_idx_read (
     ret = dbg_svr_idx_open_read(ctl); ERR_NZERO(ret);
     ret = fscanf(ctl->fp, DBG_SVR_IDX_FMT, &(ctl->create), &(ctl->remove)); ERR_NPOS(ret);
     dbg_svr_idx_close(ctl);
-    LOG("create=%04u remove=%04u", ctl->create, ctl->remove);
+    INF("create=%04u remove=%04u", ctl->create, ctl->remove);
 
     ret = 0;
 LEXIT;
@@ -308,6 +308,7 @@ dbg_svr_idx_init (
     char * const                        path)
 {   ENTR();
     int                                 ret = -1;
+    char *                              pwd;
     ERR_NULL(ctl); ERR_NULL(path);
 
     if (strlen(path) > 1)
@@ -317,7 +318,6 @@ dbg_svr_idx_init (
     }
     else
     {
-        char *                          pwd;
         pwd = getcwd(ctl->path_name, GENERAL_PATH_LEN); ERR_NULL(pwd);
         snprintf(&(ctl->path_name[strlen(ctl->path_name)]), DBG_SVR_IDX_PATH_NAME_LEN,
                  "%s/%s", DBG_SVR_DIR_NAME_DFT, DBG_SVR_IDX_NAME_DFT );
@@ -481,10 +481,12 @@ dbg_svr_log_write_trailer (
 
     ctl->time_now = time(NULL);
     ctl->time_local = localtime(&(ctl->time_now));
-    fprintf(ctl->fp, DBG_SVR_LOG_TRAILER_FMT, ctl->dir->path_name, ctl->name);
-    fprintf(ctl->fp, DBG_SVR_LOG_TRAILER_TIME_FMT,
+    fprintf(ctl->fp, DBG_SVR_LOG_END_TIME_FMT,
                   ctl->LOCAL_YEAR, ctl->LOCAL_MON, ctl->LOCAL_DAY,
                   ctl->LOCAL_HOUR, ctl->LOCAL_MIN, ctl->LOCAL_SEC);
+    fprintf(ctl->fp, DBG_SVR_LOG_PATH_NAME_FMT, ctl->dir->path_name, ctl->name);
+    fprintf(ctl->fp, DBG_SVR_IDX_FMT, ctl->idx->create, ctl->idx->remove);
+    dbg_svr_log_flush(ctl);
 
     ret = 0;
 LEXIT;
@@ -503,12 +505,12 @@ dbg_svr_log_write_header (
 
     ctl->time_now = time(NULL);
     ctl->time_local = localtime(&(ctl->time_now));
-    ret = fprintf(ctl->fp, DBG_SVR_IDX_FMT, ctl->idx->create, ctl->idx->remove); WRN_NPOS(ret);
-    ret = fprintf(ctl->fp, DBG_SVR_LOG_MAKE_FMT, __DATE__, __TIME__); WRN_NPOS(ret);
-    ret = fprintf(ctl->fp, DBG_SVR_LOG_HEADER_FMT, ctl->dir->path_name, ctl->name); WRN_NPOS(ret);
-    ret = fprintf(ctl->fp, DBG_SVR_LOG_HEADER_TIME_FMT,
-                  ctl->LOCAL_YEAR, ctl->LOCAL_MON, ctl->LOCAL_DAY,
-                  ctl->LOCAL_HOUR, ctl->LOCAL_MIN, ctl->LOCAL_SEC); WRN_NPOS(ret);
+    fprintf(ctl->fp, DBG_SVR_LOG_MAKE_FMT, __DATE__, __TIME__);
+    fprintf(ctl->fp, DBG_SVR_IDX_FMT, ctl->idx->create, ctl->idx->remove);
+    fprintf(ctl->fp, DBG_SVR_LOG_PATH_NAME_FMT, ctl->dir->path_name, ctl->name);
+    fprintf(ctl->fp, DBG_SVR_LOG_START_TIME_FMT,
+            ctl->LOCAL_YEAR, ctl->LOCAL_MON, ctl->LOCAL_DAY,
+            ctl->LOCAL_HOUR, ctl->LOCAL_MIN, ctl->LOCAL_SEC);
     dbg_svr_log_flush(ctl);
 
     ret = 0;
@@ -588,8 +590,7 @@ dbg_svr_log_config (
 {   ENTR();
     int                                 ret = -1;
     DBG_SVR_LOG_CFG *                   cfg = NULL;
-    int                                 optchar;
-    int                                 optindex;
+    int                                 optchar, optindex;
     struct option                       optlist[] =
     {
         {DBG_SVR_LOG_OPTL_PATH,         required_argument,  0, DBG_SVR_LOG_OPTC_PATH},
@@ -660,6 +661,8 @@ dbg_svr_log_config (
         INF("limit_count=%u", cfg->limit_count);
     }
     REGULATE(cfg->limit_count, DBG_SVR_LOG_COUNT_MIN, DBG_SVR_LOG_COUNT_MAX);
+
+    dbg_svr_log_config_show(ctl->cfg);
 
     ret = 0;
 LEXIT;
@@ -732,7 +735,6 @@ dbg_svr_log_init (
         dbg_svr_log_release(ctl);
     }
     ret = dbg_svr_log_config(ctl, argc, argv); ERR_NZERO(ret);
-    dbg_svr_log_config_show(ctl->cfg);
 
     ctl->dir = &(ctl->_dir);
     ret = dbg_svr_dir_init(ctl->dir, ctl->cfg->path); ERR_NZERO(ret);
@@ -920,6 +922,8 @@ dbg_svr_config (
         }
     }
 
+    dbg_svr_config_show(ctl->cfg);
+
     ret = 0;
 LEXIT;
     return(ret);
@@ -978,7 +982,7 @@ dbg_svr_init (
         dbg_svr_release(ctl);
     }
     ret = dbg_svr_config(ctl, argc, argv); ERR_NZERO(ret);
-    dbg_svr_config_show(ctl->cfg);
+
 
     ctl->log = &(ctl->_log);
     ret = dbg_svr_log_init(ctl->log, argc, argv); ERR_NZERO(ret);

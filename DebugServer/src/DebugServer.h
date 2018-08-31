@@ -81,10 +81,9 @@ static int dbg_svr_idx_init (DBG_SVR_IDX_CTL * const ctl, char * const path);
 #define DBG_SVR_LOG_COUNT_DFT           DBG_SVR_LOG_COUNT_MIN
 /*························································*/
 #define DBG_SVR_LOG_MAKE_FMT            "[MAKE|DATE=%s-%s]\r\n"
-#define DBG_SVR_LOG_HEADER_FMT          "[LOG|PATH=%s|NAME=%s]\r\n"
-#define DBG_SVR_LOG_TRAILER_FMT         "[LOG|PATH=%s|NAME=%s]\r\n"
-#define DBG_SVR_LOG_HEADER_TIME_FMT     "[TIME|START=%04d/%02d/%02d-%02d:%02d:%02d]\r\n"
-#define DBG_SVR_LOG_TRAILER_TIME_FMT    "[TIME|END=%04d/%02d/%02d-%02d:%02d:%02d]\r\n"
+#define DBG_SVR_LOG_PATH_NAME_FMT       "[LOG|PATH=%s|NAME=%s]\r\n"
+#define DBG_SVR_LOG_START_TIME_FMT      "[TIME|START=%04d/%02d/%02d-%02d:%02d:%02d]\r\n"
+#define DBG_SVR_LOG_END_TIME_FMT        "[TIME|END=%04d/%02d/%02d-%02d:%02d:%02d]\r\n"
 /*························································*/
 typedef struct DBG_SVR_LOG_CFG {
     char                                path[GENERAL_PATH_LEN];
@@ -157,5 +156,5 @@ void dbg_svr_help (void);
 void dbg_svr_release (DBG_SVR_CTL * const ctl);
 int dbg_svr_init (DBG_SVR_CTL * const ctl, const int argc, char * const argvp[]);
 
-
+/*¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯*/
 #endif /* DEBUGSERVER_H_ */
