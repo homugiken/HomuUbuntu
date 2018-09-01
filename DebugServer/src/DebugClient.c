@@ -83,14 +83,11 @@ dbg_clnt_config (
     };
     ERR_NULL(ctl); ERR_NPOS(argc); ERR_NULL(argv);
 
-    if (ctl->cfg == NULL)
+    if (ctl->cfg != &(ctl->_cfg))
     {
-        MALLOCZ(ctl->cfg, DBG_CLNT_CFG); ERR_NULL(ctl->cfg);
+        ctl->cfg = &(ctl->_cfg);
     }
-    else
-    {
-        MEMZ(ctl->cfg, sizeof(DBG_CLNT_CFG));
-    }
+    MEMZ(ctl->cfg, sizeof(DBG_CLNT_CFG));
     cfg = ctl->cfg;
 
     opterr = 0;
@@ -167,7 +164,6 @@ dbg_clnt_init (
     }
     ret = dbg_clnt_config(ctl, argc, argv); ERR_NZERO(ret);
 
-    ERR_NULL(ctl->cfg);
     if (ctl->cfg->dbgmsg_clnt_enable == true)
     {
         ctl->dbgmsg_clnt = &(ctl->_dbgmsg_clnt);

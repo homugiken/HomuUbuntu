@@ -47,7 +47,7 @@ typedef struct DBGMSG_CFG {
 /*························································*/
 typedef struct DBGMSG_CTL {
     bool                                ready;
-    DBGMSG_CFG *                        cfg;
+    DBGMSG_CFG                          _cfg, * cfg;
     int                                 qid;
 } DBGMSG_CTL;
 /*························································*/

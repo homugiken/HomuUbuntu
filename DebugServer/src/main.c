@@ -18,6 +18,8 @@ main_signal_action (
     int                                 signum
     )
 {   ENTR();
+
+    INF("signum=%d", signum);
     switch (signum)
     {
     case SIGINT:
@@ -40,9 +42,9 @@ static int
 main_signal_init (void)
 {   ENTR();
     int                                 ret = -1;
-    struct sigaction                    * sigact = NULL;
+    struct sigaction                    _sigact = {0}, * const sigact = &_sigact;
 
-    MALLOCZ(sigact, struct sigaction);
+    MEMZ(sigact, sizeof(struct sigaction));
     sigact->sa_handler = main_signal_action;
     ret = sigemptyset(&(sigact->sa_mask)); ERR_NZERO(ret);
 
@@ -116,7 +118,6 @@ main_config (
         {
         case MAIN_OPTC_HELP:
             main_help(argv[0]);
-            main_exit(0);
             break;
         case MAIN_OPTC_VERBOSE:
             ERR_OPTARG_INVALID();
@@ -128,7 +129,11 @@ main_config (
         }
     }
 
-    REGULATE(gverbose, MAIN_VERBOSE_MIN, MAIN_VERBOSE_MAX);
+    if ((gverbose < MAIN_VERBOSE_MIN) || (gverbose > MAIN_VERBOSE_MAX))
+    {
+        gverbose = MAIN_VERBOSE_DFT;
+        INF("gverbose=%u", gverbose);
+    }
 
     main_config_show();
 
@@ -156,6 +161,7 @@ main_help (
     dbg_svr_help();
 
 LEXIT;
+    main_exit(0);
     return;
 LERROR;
     GOEXIT;
@@ -189,8 +195,8 @@ main_init (
     int                                 ret = -1;
     ERR_NPOS(argc); ERR_NULL(argv);
 
-    ret = main_config(argc, argv); ERR_NZERO(ret);
     ret = main_signal_init(); ERR_NZERO(ret);
+    ret = main_config(argc, argv); ERR_NZERO(ret);
 
     ERR_NULL(gdbg_clnt);
     MEMZ(gdbg_clnt, sizeof(DBG_CLNT_CTL));
@@ -225,7 +231,6 @@ main (
     if (argc < 2)
     {
         main_help(argv[0]);
-        main_exit(0);
         GOEXIT;
     }
 

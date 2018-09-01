@@ -138,7 +138,7 @@ typedef struct DBG_SVR_CFG {
 /*························································*/
 typedef struct DBG_SVR_CTL {
     bool                                ready;
-    DBG_SVR_CFG *                       cfg;
+    DBG_SVR_CFG                         _cfg, * cfg;
     DBG_SVR_LOG_CTL                     _log, * log;
     DBGMSG_SVR_CTL                      _dbgmsg_svr, * dbgmsg_svr;
     time_t                              time_now;

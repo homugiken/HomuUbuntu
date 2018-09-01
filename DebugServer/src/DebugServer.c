@@ -123,7 +123,7 @@ dbg_svr_dir_init (
     }
     LOG("path_name=\"%s\"", ctl->path_name);
 
-    ret = dbg_svr_dir_open(ctl); WRN_NZERO(ret);
+    ret = dbg_svr_dir_open(ctl);
     if (ret != 0)
     {
         ret = dbg_svr_dir_make(ctl); ERR_NZERO(ret);
@@ -600,14 +600,11 @@ dbg_svr_log_config (
     };
     ERR_NULL(ctl); ERR_NPOS(argc); ERR_NULL(argv);
 
-    if (ctl->cfg == NULL)
+    if (ctl->cfg != &(ctl->_cfg))
     {
-        MALLOCZ(ctl->cfg, DBG_SVR_LOG_CFG); ERR_NULL(ctl->cfg);
+        ctl->cfg = &(ctl->_cfg);
     }
-    else
-    {
-        MEMZ(ctl->cfg, sizeof(DBG_SVR_LOG_CFG));
-    }
+    MEMZ(ctl->cfg, sizeof(DBG_SVR_LOG_CFG));
     cfg = ctl->cfg;
 
     opterr = 0;
@@ -699,16 +696,10 @@ dbg_svr_log_release (
     {
         dbg_svr_log_close(ctl);
     }
-    if (ctl->cfg != NULL)
-    {
-        free(ctl->cfg);
-    }
-
     if (ctl->dir != NULL)
     {
         dbg_svr_dir_release(ctl->dir);
     }
-
     if (ctl->idx != NULL)
     {
         dbg_svr_idx_release(ctl->idx);
@@ -880,8 +871,7 @@ dbg_svr_config (
 {   ENTR();
     int                                 ret = -1;
     DBG_SVR_CFG *                       cfg = NULL;
-    int                                 optchar;
-    int                                 optindex;
+    int                                 optchar, optindex;
     struct option                       optlist[] =
     {
         {DBG_SVR_OPTL_TEST,             no_argument,        0, DBG_SVR_OPTC_TEST},
@@ -890,14 +880,11 @@ dbg_svr_config (
     };
     ERR_NPOS(argc); ERR_NULL(argv);
 
-    if (ctl->cfg == NULL)
+    if (ctl->cfg != &(ctl->_cfg))
     {
-        MALLOCZ(ctl->cfg, DBG_SVR_CFG); ERR_NULL(ctl->cfg);
+        ctl->cfg = &(ctl->_cfg);
     }
-    else
-    {
-        MEMZ(ctl->cfg, sizeof(DBG_SVR_CFG));
-    }
+    MEMZ(ctl->cfg, sizeof(DBG_SVR_CFG));
     cfg = ctl->cfg;
 
     opterr = 0;
@@ -982,7 +969,6 @@ dbg_svr_init (
         dbg_svr_release(ctl);
     }
     ret = dbg_svr_config(ctl, argc, argv); ERR_NZERO(ret);
-
 
     ctl->log = &(ctl->_log);
     ret = dbg_svr_log_init(ctl->log, argc, argv); ERR_NZERO(ret);
